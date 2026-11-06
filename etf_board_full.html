@@ -401,8 +401,6 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
     return new Promise(function(resolve, reject) {
       var s = document.createElement("script");
       s.src = src;
-      s.crossOrigin = "anonymous";
-      s.referrerPolicy = "no-referrer";
       if (charset) s.charset = charset;
       s.onload = function() { resolve(); s.remove(); };
       s.onerror = function(e) { reject(e); s.remove(); };
@@ -448,35 +446,33 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
     });
   };
 
-  // 腾讯分时接口
-  function fetchTencentMinute(sym) {
-    var url = "https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=" + sym;
-    return origFetch(url).then(function(r) { return r.json(); }).then(function(json) {
-      var sub = (json && json.data && json.data[sym] && json.data[sym].data) || {};
-      var rawDate = String(sub.date || "");
-      var dateStr = (rawDate.length === 8)
-        ? (rawDate.slice(0, 4) + "-" + rawDate.slice(4, 6) + "-" + rawDate.slice(6, 8))
-        : new Date().toISOString().slice(0, 10);
-      var rawList = sub.data || [];
-      var rows = [], lastCum = 0;
-      rawList.forEach(function(item) {
-        var parts = item.split(" ");
-        if (parts.length >= 4) {
-          var tStr = parts[0];
-          var tFmt = tStr.slice(0, 2) + ":" + tStr.slice(2, 4) + ":00";
-          var closeVal = parts[1];
-          var cumAmount = parseFloat(parts[3]) || 0;
-          var minuteAmount = lastCum > 0 ? Math.max(0, cumAmount - lastCum) : cumAmount;
-          lastCum = cumAmount;
-          rows.push({
-            day: dateStr + " " + tFmt,
-            close: String(closeVal),
-            amount: String(minuteAmount)
-          });
-        }
+  // 新浪财经1分钟分时K线接口 (原生支持跨域 JSONP，无 WAF 拦截)
+  function fetchSinaMinute(sym) {
+    var globalVar = "_" + sym;
+    var url = "https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20" + globalVar + "=/CN_MarketDataService.getKLineData?symbol=" + sym + "&scale=1&datalen=240&_=" + Date.now();
+    return new Promise(function(resolve) {
+      var timer = setTimeout(function() { resolve([]); }, 5000);
+      loadScript(url, "gbk").then(function() {
+        clearTimeout(timer);
+        var raw = window[globalVar];
+        if (!raw || !Array.isArray(raw)) { resolve([]); return; }
+        var items = raw.map(function(item) {
+          return {
+            day: item.day,
+            open: String(item.open || ""),
+            high: String(item.high || ""),
+            low: String(item.low || ""),
+            close: String(item.close || ""),
+            volume: String(item.volume || ""),
+            amount: String(item.amount || "")
+          };
+        });
+        resolve(items);
+      }).catch(function() {
+        clearTimeout(timer);
+        resolve([]);
       });
-      return rows;
-    }).catch(function() { return []; });
+    });
   }
 
   window.fetch = function(url, options) {
@@ -501,7 +497,7 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
       if (url.indexOf("/api/kline") !== -1) {
         var sm = url.match(/[?&]symbol=([^&]+)/);
         var symbol = sm ? decodeURIComponent(sm[1]) : "sh000001";
-        return fetchTencentMinute(symbol).then(function(rows) {
+        return fetchSinaMinute(symbol).then(function(rows) {
           return new Response(JSON.stringify(rows), {
             status: 200, headers: { 'Content-Type': 'application/json' }
           });
@@ -512,7 +508,7 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
         var symbols = ssm ? decodeURIComponent(ssm[1]).split(",") : ["sh000001"];
         var promises = symbols.map(function(s) {
           s = s.trim();
-          return fetchTencentMinute(s).then(function(rows) {
+          return fetchSinaMinute(s).then(function(rows) {
             return { sym: s, rows: rows };
           });
         });
