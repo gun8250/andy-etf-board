@@ -430,7 +430,7 @@
 
     if (snap && snap.list) {
       var rows = snap.list.map(function (x) {
-        return { code: x.f12, name: etfName(x.f12, x.f14), price: Number(x.f2), pct: Number(x.f3), amount: Number(x.f6) / 1e8 };
+        return { code: x.f12, name: etfName(x.f12, x.f14), price: Number(x.f2), pct: Number(x.f3), amount: Number(x.f6) / 1e8, outer_lots: x.outer_lots || 0, inner_lots: x.inner_lots || 0 };
       }).sort(function (a, b) { return b.amount - a.amount; });
       renderTable(rows);
     }
@@ -475,7 +475,7 @@
         // 1. 只要拿到实时行情快照，立即渲染单只 ETF 表格与最新成交
         if (snap && snap.list && snap.list.length) {
           var rows = snap.list.map(function (x) {
-            return { code: x.f12, name: etfName(x.f12, x.f14), price: Number(x.f2), pct: Number(x.f3), amount: Number(x.f6) / 1e8 };
+            return { code: x.f12, name: etfName(x.f12, x.f14), price: Number(x.f2), pct: Number(x.f3), amount: Number(x.f6) / 1e8, outer_lots: x.outer_lots || 0, inner_lots: x.inner_lots || 0 };
           }).sort(function (a, b) { return b.amount - a.amount; });
           renderTable(rows);
           if (snap.idx && Number(snap.idx.f18)) preClose = Number(snap.idx.f18);
