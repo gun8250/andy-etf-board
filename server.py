@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 ETF 资金看板本地全功能免密服务器 (完全脱离原网站·官方直连引擎)
-- 实时行情：直接对接新浪财经/东财官方行情源
-- 分时走势：直接对接官方 1 分钟分时 K 线源
+- 实时行情：直接对接新浪财经官方行情源
+- 分时走势：直接对接新浪官方 1 分钟分时 K 线源
 - 原网站改密码/下线没有任何影响，实现 100% 自主运行
+- 仅监听 127.0.0.1，不暴露到局域网
 """
 
 import http.server
@@ -16,12 +17,11 @@ import ssl
 import re
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 PORT = 8080
+BIND = "127.0.0.1"
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
-REMOTE_ORIGIN = "https://etf-fund-flow-board.app.workbuddy.host"
-AUTH_COOKIE_NAME = "etf_auth"
-AUTH_COOKIE_VALUE = "3c5f948d8857b1dfea8ab691"
 
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
@@ -125,13 +125,13 @@ class ETFBoardHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if path == "/api/ktrends":
-            symbols = query.get("symbols", ["sh000001"])[0].split(",")
+            symbols = [s.strip() for s in query.get("symbols", ["sh000001"])[0].split(",") if s.strip()]
             datalen = int(query.get("datalen", [260])[0])
-            res = {}
-            for s in symbols:
-                s = s.strip()
-                if s:
-                    res[s] = fetch_sina_kline(s, datalen)
+            # 并发拉取：此前 21 只串行、每只超时 4s，最坏 84s 才返回，
+            # 早超出浏览器侧重试窗口；8 线程并发后正常 <2s、最坏 ~8s。
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                results = list(pool.map(lambda s: fetch_sina_kline(s, datalen), symbols))
+            res = dict(zip(symbols, results))
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
@@ -164,11 +164,13 @@ class ETFBoardHandler(http.server.SimpleHTTPRequestHandler):
 def run():
     print(f"==================================================")
     print(f"  ETF资金看板本地免密服务器启动中...")
-    print(f"  访问地址: http://127.0.0.1:{PORT}")
+    print(f"  访问地址: http://{BIND}:{PORT} (仅本机)")
     print(f"  数据引擎: 官方直连引擎 (完全脱离原网站，实时更新)")
     print(f"==================================================")
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), ETFBoardHandler) as httpd:
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    socketserver.ThreadingTCPServer.daemon_threads = True
+    # 多线程处理：单线程 TCPServer 下，一个访客的慢请求会阻塞所有人
+    with socketserver.ThreadingTCPServer((BIND, PORT), ETFBoardHandler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

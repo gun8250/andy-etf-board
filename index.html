@@ -307,8 +307,6 @@ table.fin-table tr:hover { background: #f8fafc; }
 .chip.core { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
 .chip.observe { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
-.spark-svg { vertical-align: middle; }
-
 /* 兼容保留原版必要图表高度与色阶定义 */
 .chart { width: 100%; height: 420px; }
 #chart { height: 380px; }
@@ -459,10 +457,6 @@ footer.site-footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid 
   .fin-table td {
     padding: 10px 8px;
     font-size: 13px;
-  }
-  .spark-svg {
-    width: 80px;
-    height: 22px;
   }
   .chart {
     height: 280px !important;
@@ -702,7 +696,7 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
       </div>
       <div class="v-stamp">
         <div class="v-stamp-num" id="vstampNum">--</div>
-        <div class="v-stamp-label" id="vstampLabel">同时点历史可比倍数</div>
+        <div class="v-stamp-label" id="vstampLabel">同时点 vs 常态日均</div>
       </div>
     </div>
     <div class="v-reason" id="vreason">
@@ -713,7 +707,7 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
       <div class="m-card">
         <div class="m-label">核心池合计成交额</div>
         <div class="m-val num" id="mSumAmt">-- 亿</div>
-        <div class="m-sub" id="mSumAmtSub">已达成全天日均 --</div>
+        <div class="m-sub" id="mSumAmtSub">已达成常态日均 --</div>
       </div>
       <div class="m-card">
         <div class="m-label">同时点可比放大倍数</div>
@@ -771,16 +765,15 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
     <div class="chart" id="chartTypNorm" style="margin-top:16px;"></div>
   </section>
 
-  <!-- 亮点四：单只ETF当日表现排名（带Sparkline、同时点倍数、主动净买入） -->
+  <!-- 亮点四：单只ETF当日表现排名（主动净买入推算 + 汇金核心池标注） -->
   <section class="panel-card">
     <div class="panel-head">
       <div>
         <div class="panel-title">单只ETF当日表现与微观资金监控</div>
-        <div class="panel-sub">点击表头可自由升降序排列 · 点击药丸过滤池子 · 内外盘主动买卖 · 30日火花微图</div>
+        <div class="panel-sub">点击表头可自由升降序排列 · 点击药丸过滤池子 · 内外盘主动买卖推算 · 汇金核心池标注</div>
         <div class="filter-bar">
           <button class="pill-btn active" onclick="window.applyTableFilter('all', this)">全部 20 只</button>
           <button class="pill-btn" onclick="window.applyTableFilter('huijin', this)">🏛️ 仅看汇金重仓</button>
-          <button class="pill-btn" onclick="window.applyTableFilter('surge', this)">⚡ 放量异动 (≥1.5×)</button>
           <button class="pill-btn" onclick="window.applyTableFilter('netbuy', this)">🔥 主力抢筹 (净买入>0)</button>
         </div>
       </div>
@@ -795,9 +788,7 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
             <th class="num sortable" onclick="window.toggleTableSort('pct')">涨跌幅 <span class="sort-arr" id="sort_pct"></span></th>
             <th class="num sortable" onclick="window.toggleTableSort('amount')">当日成交额(亿) <span class="sort-arr active" id="sort_amount">▼</span></th>
             <th class="num">占比</th>
-            <th class="num sortable" onclick="window.toggleTableSort('ratio')">同时点倍数 <span class="sort-arr" id="sort_ratio"></span></th>
             <th class="num sortable" onclick="window.toggleTableSort('netBuy')">主动净买入(亿) <span class="sort-arr" id="sort_netBuy"></span></th>
-            <th>近30日成交趋势</th>
           </tr>
         </thead>
         <tbody id="etfTable"></tbody>
@@ -839,7 +830,7 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
   </section>
 
   <footer class="site-footer">
-    Andy的国家队资金看板 · 数据来源：腾讯财经、东方财富、Choice · 客观数据推演仅供专业参考，不构成任何投资建议。
+    Andy的国家队资金看板 · 数据来源：腾讯财经、新浪财经公开行情与自建日度数据 · 客观数据推演仅供专业参考，不构成任何投资建议。
   </footer>
 </div>
 
@@ -2045,6 +2036,58 @@ window.__ETF_APP_READY = true;
 (function enhanceStateTeamDecisionEngine() {
   "use strict";
 
+  /* 真实基准模块（2026-11-06 修根，11-06 晚二次修正口径）：
+     倍数语义是「今天 vs 国家队不上班的平时」，基准必须用常态日，不能用滚动 20 日——
+     最近 20 日几乎整个落在托底周期内（放量日频出），滚动均值被抬到 831 亿，今天 809.8 亿
+     只有 0.97×，把「量能放到常态 1.63×」的大额买入判成「没看出上班迹象」。
+     现口径：
+       avg20      = dailyData 中剔除放量日（cmpData.support，净流入>100 亿申赎口径）后
+                    最近 20 个常态日的均额（当前约 497 亿，随数据每日自动更新）
+       progressAt = __CUMDAYS 全部交易日「该时点完成度」均值（真实 U 型日内分布，
+                    常态日与放量日的分布形状相近，用全体更中性） */
+  var REAL_BASE = (function () {
+    var ISL = window.__ISLANDS || {};
+    var D = ISL.dailyData || {};
+    var dates = D.dates || [], amt = D.amount || [];
+    var support = (ISL.cmpData && ISL.cmpData.support) || [];
+    var supDates = {};
+    support.forEach(function (s) { if (s && s.date) supDates[s.date] = 1; });
+    /* 常态日序列：不在放量日名单里且当日成交额有效 */
+    var normalAmts = [];
+    for (var i = 0; i < dates.length; i++) {
+      if (!supDates[dates[i]] && amt[i] != null) normalAmts.push(amt[i]);
+    }
+    /* 放量日名单缺失时退化为全量滚动 20 日（基准会偏高，但优于无基准） */
+    var pool = support.length ? normalAmts : amt.slice();
+    var n = Math.min(20, pool.length);
+    var avg = null;
+    if (n >= 5) {
+      var s = 0;
+      for (var j = pool.length - n; j < pool.length; j++) s += pool[j];
+      avg = s / n;
+    }
+    var cum = window.__CUMDAYS || {};
+    var keys = Object.keys(cum).sort();
+    /* FULL_T 时间轴：09:30~11:30 共 121 根、13:01~15:00 共 120 根（与 app.js fullAxis 一致） */
+    function idxOf(hhmm) {
+      var h = parseInt(hhmm.slice(0, 2), 10), m = parseInt(hhmm.slice(3), 10);
+      var t = h * 60 + m;
+      return t <= 690 ? (t - 570) : (121 + (t - 781));
+    }
+    function progressAt(hhmm) {
+      if (!keys.length) return null;
+      var idx = Math.max(0, Math.min(240, idxOf(hhmm)));
+      var s = 0, k = 0;
+      keys.forEach(function (day) {
+        var a = cum[day];
+        if (a && a.length === 241 && a[240] > 0) { s += a[idx] / a[240]; k++; }
+      });
+      return k ? s / k : null;
+    }
+    return { avg20: avg, days: n, isNormalBase: !!support.length,
+             progressAt: progressAt, cumDays: keys.length };
+  })();
+
   // 1. 交易时间与同时点进度算法
   function getMarketState() {
     var now = new Date();
@@ -2059,19 +2102,14 @@ window.__ETF_APP_READY = true;
     var before = !isWeekend && (t < 570);
 
     var effHHMM = lunch ? "11:30" : ((h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m);
-    
-    // 同时点完成比例（U型日内成交分布）
+
+    /* 同时点完成比例：优先用 __CUMDAYS 近 20 日真实日内分布（U 型），真源缺失才退回分段线性。
+       非交易时段（开盘前/收盘后/周末）展示的是上一交易日或当日的全天数据，progress 恒为 1。 */
     var progress = 1.0;
     if (trading || lunch) {
-      if (t < 570) progress = 0.05;
-      else if (t <= 600) progress = 0.15 + (t - 570) / 30 * 0.15; // 09:30 - 10:00 (15% - 30%)
-      else if (t <= 690) progress = 0.30 + (t - 600) / 90 * 0.20; // 10:00 - 11:30 (30% - 50%)
-      else if (t < 780) progress = 0.50;                          // 午休锁定 50%
-      else if (t <= 840) progress = 0.50 + (t - 780) / 60 * 0.25; // 13:00 - 14:00 (50% - 75%)
-      else if (t <= 870) progress = 0.75 + (t - 840) / 30 * 0.12; // 14:00 - 14:30 (75% - 87%)
-      else progress = 0.87 + (t - 870) / 30 * 0.13;              // 14:30 - 15:00 (87% - 100%)
+      var real = REAL_BASE.progressAt(effHHMM);
+      progress = (real != null) ? Math.max(0.05, Math.min(1.0, real)) : (lunch ? 0.55 : 0.5);
     }
-    progress = Math.max(0.10, Math.min(1.0, progress));
 
     return {
       isWeekend: isWeekend,
@@ -2085,41 +2123,13 @@ window.__ETF_APP_READY = true;
     };
   }
 
-  // 20只核心ETF基准20日全天均额与历史样本
-  var BASE20_MAP = {
-    "510300": 75.0, "510310": 20.0, "588000": 55.0, "159915": 48.0,
-    "563360": 16.0, "159352": 15.0, "512100": 25.0, "159338": 12.0,
-    "510500": 38.0, "159949": 14.0, "588080": 15.0, "510050": 28.0,
-    "510210": 8.0,  "159845": 10.0, "159952": 8.0,  "159361": 8.0,
-    "512050": 6.0,  "159633": 6.0,  "560010": 5.0,  "159919": 18.0
-  };
+  /* 20 日均额基准不再硬编码：统一取 REAL_BASE.avg20（dailyData 真源）。
+     单只 ETF 的历史均额页面里没有数据源，原先「同时点倍数」列与 sin 曲线 sparkline
+     均为编造数据，已整列删除（2026-11-06）。 */
 
-  // 汇金核心重仓标签代码集合
+  /* 汇金核心重仓标签：汇金公司历次公告增持过的核心宽基（2023-10 / 2024-02 公告口径），
+     人工维护——换仓调整 ETF 篮子时需同步核对本名单。 */
   var CORE_HUIJIN = ["510300", "510500", "588000", "159915", "510050", "510310", "159919"];
-
-  // 模拟生成优雅的 30 日微型走势 Sparkline SVG
-  function generateSparkline(currentAmt, code) {
-    var base = BASE20_MAP[code] || 15.0;
-    var points = [];
-    var seed = parseInt(code, 10) % 100;
-    for (var i = 0; i < 29; i++) {
-      var jitter = Math.sin((i + seed) * 0.7) * 0.35 + 0.9;
-      points.push(base * jitter);
-    }
-    points.push(currentAmt); // 最新今日
-
-    var max = Math.max.apply(null, points) || 1;
-    var w = 84, h = 22, n = points.length;
-    var bw = w / n;
-    var rects = points.map(function(v, i) {
-      var bh = Math.max(1.5, (v / max) * h);
-      var isLast = (i === n - 1);
-      var color = isLast ? "#ff4713" : "#cbd5e1";
-      return '<rect x="' + (i * bw).toFixed(1) + '" y="' + (h - bh).toFixed(1) + '" width="' + (bw - 0.8).toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + color + '"/>';
-    }).join("");
-
-    return '<svg class="spark-svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' + rects + '</svg>';
-  }
 
   // 2. 渲染升级版单只 ETF 表格
 var currentTableFilter = 'all';
@@ -2145,8 +2155,8 @@ var currentTableFilter = 'all';
       currentSortKey = key;
       currentSortAsc = false;
     }
-    // 更新表头箭头状态
-    ['price', 'pct', 'amount', 'ratio', 'netBuy'].forEach(function(k) {
+    // 更新表头箭头状态（'ratio' 列已随单只假基准一起移除，无单只历史数据源）
+    ['price', 'pct', 'amount', 'netBuy'].forEach(function(k) {
       var arrEl = document.getElementById('sort_' + k);
       if (arrEl) {
         if (k === currentSortKey) {
@@ -2170,18 +2180,10 @@ var currentTableFilter = 'all';
     cachedRawItems = items;
     cachedMarketSt = st;
 
-    var p = (st && st.progress) ? st.progress : 1.0;
-
-    // 1. 过滤
+    // 1. 过滤（'surge' 放量异动过滤已移除：依赖单只硬编码基准，无真实单只历史数据源）
     var displayList = items.slice();
     if (currentTableFilter === 'huijin') {
       displayList = displayList.filter(function(r) { return CORE_HUIJIN.indexOf(r.code) !== -1; });
-    } else if (currentTableFilter === 'surge') {
-      displayList = displayList.filter(function(r) {
-        var base = BASE20_MAP[r.code] || (r.amount * 0.8);
-        var ratio = (base * p > 0) ? (r.amount / (base * p)) : 1.0;
-        return ratio >= 1.5;
-      });
     } else if (currentTableFilter === 'netbuy') {
       displayList = displayList.filter(function(r) {
         var oi = (r.outer_lots || 0) + (r.inner_lots || 0);
@@ -2199,11 +2201,6 @@ var currentTableFilter = 'all';
         vA = a.price; vB = b.price;
       } else if (currentSortKey === 'pct') {
         vA = a.pct; vB = b.pct;
-      } else if (currentSortKey === 'ratio') {
-        var bA = (BASE20_MAP[a.code] || (a.amount * 0.8)) * p;
-        var bB = (BASE20_MAP[b.code] || (b.amount * 0.8)) * p;
-        vA = bA > 0 ? (a.amount / bA) : 1.0;
-        vB = bB > 0 ? (b.amount / bB) : 1.0;
       } else if (currentSortKey === 'netBuy') {
         var oiA = (a.outer_lots || 0) + (a.inner_lots || 0);
         var oiB = (b.outer_lots || 0) + (b.inner_lots || 0);
@@ -2226,20 +2223,13 @@ var currentTableFilter = 'all';
       var share = total > 0 ? (r.amount / total * 100) : 0;
       var wBar = maxA > 0 ? (r.amount / maxA * 100) : 0;
 
-      // 同时点对齐倍数
-      var base20 = BASE20_MAP[r.code] || (r.amount * 0.8);
-      var adjBase = base20 * st.progress;
-      var ratio = adjBase > 0 ? (r.amount / adjBase) : 1.0;
-      var ratioCls = ratio >= 1.8 ? "color:#e11d48;font-weight:700;" : (ratio >= 1.3 ? "color:#d97706;font-weight:600;" : "color:var(--text-sub);");
-
-      // 主动净买入推算
+      // 主动净买入推算：外盘主动买占比 × 当日成交额
       var oi = (r.outer_lots || 0) + (r.inner_lots || 0);
       var netBuy = oi > 0 ? ((r.outer_lots - r.inner_lots) / oi * r.amount) : 0;
       var netCls = netBuy > 0 ? "color:#e11d48;" : (netBuy < 0 ? "color:#059669;" : "color:#94a3b8;");
       var netText = (netBuy > 0 ? "+" : "") + netBuy.toFixed(2);
 
       var pctCls = r.pct > 0 ? "color:#e11d48;" : (r.pct < 0 ? "color:#059669;" : "color:#94a3b8;");
-      var sparkSvg = generateSparkline(r.amount, r.code);
 
       html += '<tr>' +
         '<td><span class="num" style="font-weight:600;">' + r.code + '</span></td>' +
@@ -2248,24 +2238,19 @@ var currentTableFilter = 'all';
         '<td class="num ' + pctCls + '">' + (r.pct > 0 ? "+" : "") + r.pct.toFixed(2) + '%</td>' +
         '<td class="num amt-cell"><span class="amt-bg" style="width:' + wBar.toFixed(1) + '%"></span><span class="amt-val">' + r.amount.toFixed(2) + '</span></td>' +
         '<td class="num">' + share.toFixed(1) + '%</td>' +
-        '<td class="num" style="' + ratioCls + '">' + ratio.toFixed(2) + '×</td>' +
         '<td class="num" style="' + netCls + '">' + netText + '</td>' +
-        '<td>' + sparkSvg + '</td>' +
       '</tr>';
     });
     tb.innerHTML = html;
   }
 
-  // 3. 核心量化决策大卡片渲染
+  // 3. 核心量化决策大卡片渲染（基准取 REAL_BASE.avg20 真源）
   function updateDecisionCard(items, st) {
-    var totalAmt = 0, totalBase20 = 0, totalBaseAdj = 0, netBuySum = 0;
+    var totalAmt = 0, netBuySum = 0;
     var weightedPctSum = 0, totalWeight = 0;
 
     items.forEach(function(r) {
       totalAmt += r.amount;
-      var base = BASE20_MAP[r.code] || (r.amount * 0.85);
-      totalBase20 += base;
-      totalBaseAdj += base * st.progress;
 
       var oi = (r.outer_lots || 0) + (r.inner_lots || 0);
       var net = oi > 0 ? ((r.outer_lots - r.inner_lots) / oi * r.amount) : 0;
@@ -2277,8 +2262,7 @@ var currentTableFilter = 'all';
       weightedPctSum += r.pct * w;
     });
 
-    var ratio = totalBaseAdj > 0 ? (totalAmt / totalBaseAdj) : 1.0;
-    var rawRatio = totalBase20 > 0 ? (totalAmt / totalBase20) : 1.0;
+    var base20 = REAL_BASE.avg20;
     var weightedPct = totalWeight > 0 ? (weightedPctSum / totalWeight) : 0.0;
 
     // 4 档结论判定
@@ -2288,26 +2272,50 @@ var currentTableFilter = 'all';
     var vstampNumEl = document.getElementById("vstampNum");
 
     var level = "cool", title = "", reason = "";
+
+    if (!(base20 > 0)) {
+      /* dailyData 真源缺失：只展示实时事实，不输出倍数结论 */
+      title = "基准数据缺失 ⚠️";
+      reason = "常态日均基准（dailyData）未加载，倍数判定不可用。表格与分时图不受影响。";
+      if (cardEl) cardEl.className = "verdict-card cool";
+      if (vtitleEl) vtitleEl.textContent = title;
+      if (vreasonEl) vreasonEl.textContent = reason;
+      if (vstampNumEl) vstampNumEl.textContent = "--";
+      var mSumAmt0 = document.getElementById("mSumAmt");
+      if (mSumAmt0) mSumAmt0.textContent = totalAmt.toFixed(1) + " 亿";
+      var mRatio0 = document.getElementById("mRatio");
+      if (mRatio0) mRatio0.textContent = "--";
+      var mRatioBar0 = document.getElementById("mRatioBar");
+      if (mRatioBar0) mRatioBar0.style.width = "0%";
+      var mNetBuy0 = document.getElementById("mNetBuy");
+      if (mNetBuy0) mNetBuy0.textContent = (netBuySum >= 0 ? "+" : "") + netBuySum.toFixed(1) + " 亿";
+      var mWeightedPct0 = document.getElementById("mWeightedPct");
+      if (mWeightedPct0) mWeightedPct0.textContent = (weightedPct > 0 ? "+" : "") + weightedPct.toFixed(2) + "%";
+      return;
+    }
+
+    var ratio = (totalAmt / base20) / st.progress;
+    var rawRatio = totalAmt / base20;
     if (ratio >= 1.8 && netBuySum > 0) {
       level = "hot";
       title = "大概率上班了 🏛️";
-      reason = "核心池成交额达历史同时点均值的 " + ratio.toFixed(2) + "× 倍（已放量 " + ((ratio - 1) * 100).toFixed(0) + "%），且内外盘主动净买入 +" + netBuySum.toFixed(1) + " 亿元。量价同向共振，呈现极其强烈的国家队托底护盘特征。";
+      reason = "核心池成交额达常态日均（剔除放量日）的 " + ratio.toFixed(2) + "× 倍（已放量 " + ((ratio - 1) * 100).toFixed(0) + "%），且内外盘主动净买入 +" + netBuySum.toFixed(1) + " 亿元。量价同向共振，呈现极其强烈的国家队托底护盘特征。";
     } else if (ratio >= 1.3 && netBuySum > 0) {
       level = "mid";
       title = "有护盘迹象 ⚡";
-      reason = "成交额放大到历史同时点均值的 " + ratio.toFixed(2) + "× 倍，主动净买入 +" + netBuySum.toFixed(1) + " 亿元，资金方向明显偏买托底，但整体力度尚在发酵。";
+      reason = "成交额放大到常态日均（剔除放量日）的 " + ratio.toFixed(2) + "× 倍，主动净买入 +" + netBuySum.toFixed(1) + " 亿元，资金方向明显偏买托底，但整体力度尚在发酵。";
     } else if (ratio >= 1.8 && netBuySum <= 0) {
       level = "mid";
       title = "放量了，方向不对 ⚠️";
-      reason = "成交额放大到同时点均值的 " + ratio.toFixed(2) + "× 倍，但内外盘主动净卖出 " + netBuySum.toFixed(1) + " 亿元。属于大额资金换手或逢高流出，非国家队主动买盘，不可误判为护盘。";
+      reason = "成交额放大到常态日均（剔除放量日）的 " + ratio.toFixed(2) + "× 倍，但内外盘主动净卖出 " + netBuySum.toFixed(1) + " 亿元。属于大额资金换手或逢高流出，非国家队主动买盘，不可误判为护盘。";
     } else if (ratio >= 1.3) {
       level = "mid";
       title = "成交活跃，证据待积累 ⏳";
-      reason = "成交额达到历史同时点均值的 " + ratio.toFixed(2) + "× 倍，但资金净买入仅 " + (netBuySum >= 0 ? "+" : "") + netBuySum.toFixed(1) + " 亿元，买卖博弈胶着，方向尚不显著。";
+      reason = "成交额达到常态日均（剔除放量日）的 " + ratio.toFixed(2) + "× 倍，但资金净买入仅 " + (netBuySum >= 0 ? "+" : "") + netBuySum.toFixed(1) + " 亿元，买卖博弈胶着，方向尚不显著。";
     } else {
       level = "cool";
       title = "没看出上班迹象 💤";
-      reason = "核心池成交额仅为历史同时点均值的 " + ratio.toFixed(2) + "× 倍，主动净买入 " + (netBuySum >= 0 ? "+" : "") + netBuySum.toFixed(1) + " 亿元，量价波动处于正常交易区间。";
+      reason = "核心池成交额仅为常态日均（剔除放量日）的 " + ratio.toFixed(2) + "× 倍，主动净买入 " + (netBuySum >= 0 ? "+" : "") + netBuySum.toFixed(1) + " 亿元，量价波动处于正常交易区间。";
     }
 
     if (st.isTail) {
@@ -2332,7 +2340,7 @@ var currentTableFilter = 'all';
     var mSumAmt = document.getElementById("mSumAmt");
     if (mSumAmt) mSumAmt.textContent = totalAmt.toFixed(1) + " 亿";
     var mSumAmtSub = document.getElementById("mSumAmtSub");
-    if (mSumAmtSub) mSumAmtSub.textContent = "截至 " + st.effHHMM + " · 已达成日均 " + rawRatio.toFixed(2) + "×";
+    if (mSumAmtSub) mSumAmtSub.textContent = "截至 " + st.effHHMM + " · 已达成常态日均 " + rawRatio.toFixed(2) + "×";
 
     var mRatio = document.getElementById("mRatio");
     if (mRatio) mRatio.textContent = ratio.toFixed(2) + "×";

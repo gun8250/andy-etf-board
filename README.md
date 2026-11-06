@@ -17,14 +17,18 @@
 
 ```
 ├── index.html          # 主入口文件（自包含所有图表、离线数据与实时直连引擎）
-├── etf_board_full.html # 全功能完整单文件
+├── standalone.html     # 本地离线快照版（仅基准数据，无实时）
 ├── data.js             # 历史基准数据与 20 大 ETF 案例走势
 ├── cumdays.json        # 2026 全年 200+ 交易日分钟累计走势数据集
-├── app.js              # 核心计算与 ECharts 图表渲染引擎
+├── app.js              # 核心计算与 ECharts 图表渲染引擎（standalone 版使用）
 ├── echarts.min.js      # ECharts 6.0 离线运行时
 ├── style.css           # 响应式布局与资金流红绿配色样式表
-└── server.py           # 本地可选 Python 运行服务
+└── server.py           # 本地可选 Python 运行服务（仅监听 127.0.0.1）
 ```
+
+### 数据更新机制
+
+`data.js` 与 `cumdays.json` 由本地工具链（`tools/fetch_netflow.py`、`tools/build_cum.py` 等，未随本仓库公开）每个交易日重建后提交。决策卡的 20 日均额基准与日内同时点分布均从这两个文件的真源计算，不使用硬编码数值。
 
 ---
 
