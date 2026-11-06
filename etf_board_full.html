@@ -326,6 +326,149 @@ footer.site-footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid 
 .amt-bg { position: absolute; left: 0; top: 2px; bottom: 2px; background: rgba(0,94,184,0.08); z-index: 0; border-radius: 2px; pointer-events: none; }
 .amt-val { position: relative; z-index: 1; font-weight: 600; }
 .pct-cell { font-weight: 600; }
+
+/* ================= 3. 排序与过滤样式 + 4. 移动端/竖屏深度适配 ================= */
+.sortable { cursor: pointer; user-select: none; transition: background 0.15s; }
+.sortable:hover { background: rgba(255,255,255,0.06); }
+.sort-arr { font-size: 11px; margin-left: 3px; opacity: 0.35; color: #38bdf8; display: inline-block; }
+.sort-arr.active { opacity: 1; font-weight: 900; color: #38bdf8; }
+
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+.pill-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-sub);
+  padding: 5px 13px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+  touch-action: manipulation;
+}
+.pill-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-main);
+  border-color: rgba(255,255,255,0.2);
+}
+.pill-btn.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 12px rgba(37,99,235,0.4);
+}
+
+@media (max-width: 768px) {
+  body {
+    background: #0b0f19;
+  }
+  .wrap {
+    padding: 12px 10px 40px !important;
+  }
+  .header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+  }
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .verdict-card {
+    padding: 16px !important;
+    margin-bottom: 16px !important;
+  }
+  .v-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .v-title {
+    font-size: 22px !important;
+  }
+  .v-stamp {
+    align-self: flex-start;
+    padding: 4px 10px;
+  }
+  .metric-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+  }
+  .metric-card {
+    padding: 12px 14px !important;
+  }
+  .m-val {
+    font-size: 20px !important;
+  }
+  .panel-card {
+    padding: 16px 12px !important;
+    margin-bottom: 16px !important;
+  }
+  .panel-head {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+  .filter-bar {
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pill-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .tscroll {
+    position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  /* 移动端两列固定：代码与基金名称固定在左侧，右侧自由平滑滑动 */
+  .fin-table th:first-child,
+  .fin-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: #0f172a;
+    z-index: 3;
+    padding-left: 8px;
+    padding-right: 6px;
+  }
+  .fin-table th:nth-child(2),
+  .fin-table td:nth-child(2) {
+    position: sticky;
+    left: 62px;
+    background: #0f172a;
+    z-index: 3;
+    padding-left: 6px;
+    padding-right: 12px;
+    box-shadow: 4px 0 8px rgba(0,0,0,0.5);
+  }
+  .fin-table td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+  .spark-svg {
+    width: 80px;
+    height: 22px;
+  }
+  .chart {
+    height: 280px !important;
+  }
+}
+
 </style>
 <script>
 
@@ -633,7 +776,13 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
     <div class="panel-head">
       <div>
         <div class="panel-title">单只ETF当日表现与微观资金监控</div>
-        <div class="panel-sub">按成交额降序排序 · 同时点对齐倍数 · 内外盘主动买卖 · 30日微型成交柱</div>
+        <div class="panel-sub">点击表头可自由升降序排列 · 点击药丸过滤池子 · 内外盘主动买卖 · 30日火花微图</div>
+        <div class="filter-bar">
+          <button class="pill-btn active" onclick="window.applyTableFilter('all', this)">全部 20 只</button>
+          <button class="pill-btn" onclick="window.applyTableFilter('huijin', this)">🏛️ 仅看汇金重仓</button>
+          <button class="pill-btn" onclick="window.applyTableFilter('surge', this)">⚡ 放量异动 (≥1.5×)</button>
+          <button class="pill-btn" onclick="window.applyTableFilter('netbuy', this)">🔥 主力抢筹 (净买入>0)</button>
+        </div>
       </div>
     </div>
     <div class="tscroll">
@@ -642,12 +791,12 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
           <tr>
             <th>代码</th>
             <th>基金名称</th>
-            <th class="num">最新价</th>
-            <th class="num">涨跌幅</th>
-            <th class="num">当日成交额(亿)</th>
+            <th class="num sortable" onclick="window.toggleTableSort('price')">最新价 <span class="sort-arr" id="sort_price"></span></th>
+            <th class="num sortable" onclick="window.toggleTableSort('pct')">涨跌幅 <span class="sort-arr" id="sort_pct"></span></th>
+            <th class="num sortable" onclick="window.toggleTableSort('amount')">当日成交额(亿) <span class="sort-arr active" id="sort_amount">▼</span></th>
             <th class="num">占比</th>
-            <th class="num">同时点倍数</th>
-            <th class="num">主动净买入(亿)</th>
+            <th class="num sortable" onclick="window.toggleTableSort('ratio')">同时点倍数 <span class="sort-arr" id="sort_ratio"></span></th>
+            <th class="num sortable" onclick="window.toggleTableSort('netBuy')">主动净买入(亿) <span class="sort-arr" id="sort_netBuy"></span></th>
             <th>近30日成交趋势</th>
           </tr>
         </thead>
@@ -1973,9 +2122,96 @@ window.__ETF_APP_READY = true;
   }
 
   // 2. 渲染升级版单只 ETF 表格
+var currentTableFilter = 'all';
+  var currentSortKey = 'amount';
+  var currentSortAsc = false;
+  var cachedRawItems = [];
+  var cachedMarketSt = null;
+
+  window.applyTableFilter = function(f, btn) {
+    currentTableFilter = f;
+    var btns = document.querySelectorAll('.filter-bar .pill-btn');
+    btns.forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    if (cachedRawItems && cachedRawItems.length) {
+      renderAdvancedTable(cachedRawItems, cachedMarketSt);
+    }
+  };
+
+  window.toggleTableSort = function(key) {
+    if (currentSortKey === key) {
+      currentSortAsc = !currentSortAsc;
+    } else {
+      currentSortKey = key;
+      currentSortAsc = false;
+    }
+    // 更新表头箭头状态
+    ['price', 'pct', 'amount', 'ratio', 'netBuy'].forEach(function(k) {
+      var arrEl = document.getElementById('sort_' + k);
+      if (arrEl) {
+        if (k === currentSortKey) {
+          arrEl.textContent = currentSortAsc ? '▲' : '▼';
+          arrEl.className = 'sort-arr active';
+        } else {
+          arrEl.textContent = '';
+          arrEl.className = 'sort-arr';
+        }
+      }
+    });
+    if (cachedRawItems && cachedRawItems.length) {
+      renderAdvancedTable(cachedRawItems, cachedMarketSt);
+    }
+  };
+
   function renderAdvancedTable(items, st) {
     var tb = document.getElementById("etfTable");
     if (!tb || !items || !items.length) return;
+
+    cachedRawItems = items;
+    cachedMarketSt = st;
+
+    var p = (st && st.progress) ? st.progress : 1.0;
+
+    // 1. 过滤
+    var displayList = items.slice();
+    if (currentTableFilter === 'huijin') {
+      displayList = displayList.filter(function(r) { return CORE_HUIJIN.indexOf(r.code) !== -1; });
+    } else if (currentTableFilter === 'surge') {
+      displayList = displayList.filter(function(r) {
+        var base = BASE20_MAP[r.code] || (r.amount * 0.8);
+        var ratio = (base * p > 0) ? (r.amount / (base * p)) : 1.0;
+        return ratio >= 1.5;
+      });
+    } else if (currentTableFilter === 'netbuy') {
+      displayList = displayList.filter(function(r) {
+        var oi = (r.outer_lots || 0) + (r.inner_lots || 0);
+        var net = oi > 0 ? ((r.outer_lots - r.inner_lots) / oi * r.amount) : 0;
+        return net > 0.05;
+      });
+    }
+
+    // 2. 排序
+    displayList.sort(function(a, b) {
+      var vA = 0, vB = 0;
+      if (currentSortKey === 'amount') {
+        vA = a.amount; vB = b.amount;
+      } else if (currentSortKey === 'price') {
+        vA = a.price; vB = b.price;
+      } else if (currentSortKey === 'pct') {
+        vA = a.pct; vB = b.pct;
+      } else if (currentSortKey === 'ratio') {
+        var bA = (BASE20_MAP[a.code] || (a.amount * 0.8)) * p;
+        var bB = (BASE20_MAP[b.code] || (b.amount * 0.8)) * p;
+        vA = bA > 0 ? (a.amount / bA) : 1.0;
+        vB = bB > 0 ? (b.amount / bB) : 1.0;
+      } else if (currentSortKey === 'netBuy') {
+        var oiA = (a.outer_lots || 0) + (a.inner_lots || 0);
+        var oiB = (b.outer_lots || 0) + (b.inner_lots || 0);
+        vA = oiA > 0 ? ((a.outer_lots - a.inner_lots) / oiA * a.amount) : 0;
+        vB = oiB > 0 ? ((b.outer_lots - b.inner_lots) / oiB * b.amount) : 0;
+      }
+      return currentSortAsc ? (vA - vB) : (vB - vA);
+    });
 
     var maxA = 0, total = 0;
     items.forEach(function(r) {
@@ -1984,7 +2220,7 @@ window.__ETF_APP_READY = true;
     });
 
     var html = "";
-    items.forEach(function(r) {
+    displayList.forEach(function(r) {
       var isCore = CORE_HUIJIN.indexOf(r.code) !== -1;
       var chip = isCore ? '<span class="chip core">汇金重仓</span>' : '<span class="chip observe">观察池</span>';
       var share = total > 0 ? (r.amount / total * 100) : 0;
