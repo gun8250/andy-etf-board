@@ -206,6 +206,10 @@
   var cumChart = null;
   var cumPickDate = "", cumDays = null, cumDaysLoading = null;
   function loadCumDays() {
+    if (window.__CUMDAYS) {
+      cumDays = window.__CUMDAYS;
+      return Promise.resolve(cumDays);
+    }
     if (cumDays) return Promise.resolve(cumDays);
     if (cumDaysLoading) return cumDaysLoading;
     cumDaysLoading = fetch("/cumdays.json?_=" + Date.now(), { cache: "no-store" })
@@ -538,15 +542,39 @@
   });
   on(window, "resize", function () { if (chart) chart.resize(); if (cumChart) cumChart.resize(); });
 
-  (function initCumPicker() {
+  function populateCumPicker() {
     var sel = document.getElementById("cumDate");
     if (!sel) return;
-    var dates = (window.__ISLANDS && window.__ISLANDS.dailyData && window.__ISLANDS.dailyData.dates) || [];
-    dates.filter(function (d) { return d >= "2026-01-05"; }).reverse().forEach(function (d) {
+    var prevVal = sel.value;
+    var dateSet = {};
+    if (window.__CUMDAYS) {
+      Object.keys(window.__CUMDAYS).forEach(function (d) {
+        if (d >= "2026-01-05") dateSet[d] = 1;
+      });
+    } else {
+      var fallback = (window.__ISLANDS && window.__ISLANDS.dailyData && window.__ISLANDS.dailyData.dates) || [];
+      fallback.forEach(function (d) { if (d >= "2026-01-05") dateSet[d] = 1; });
+    }
+    var dates = Object.keys(dateSet).sort().reverse();
+    sel.innerHTML = '<option value="">-- 选择对比交易日 --</option>';
+    dates.forEach(function (d) {
       var o = document.createElement("option");
       o.value = d; o.textContent = d;
       sel.appendChild(o);
     });
+    if (prevVal && dateSet[prevVal]) sel.value = prevVal;
+  }
+
+  window.__onCumDaysSynced = function () {
+    if (window.__CUMDAYS) cumDays = window.__CUMDAYS;
+    populateCumPicker();
+    drawCumChart();
+  };
+
+  (function initCumPicker() {
+    var sel = document.getElementById("cumDate");
+    if (!sel) return;
+    populateCumPicker();
     sel.addEventListener("change", function () {
       cumPickDate = sel.value;
       if (!cumPickDate) { drawCumChart(); return; }
