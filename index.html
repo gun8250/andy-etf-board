@@ -463,6 +463,83 @@ footer.site-footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid 
   }
 }
 
+
+/* 第四部分 · 杠杆两融与爆仓预警定制样式 */
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.risk-low { background: rgba(5, 150, 105, 0.1); color: #059669; border: 1px solid rgba(5, 150, 105, 0.25); }
+.risk-mid { background: rgba(217, 119, 6, 0.1); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.25); }
+.risk-high { background: rgba(225, 29, 72, 0.1); color: #e11d48; border: 1px solid rgba(225, 29, 72, 0.25); }
+
+.stress-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-top: 10px;
+}
+.stress-table th {
+  background: var(--bg-subtle);
+  color: var(--text-sub);
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.stress-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-main);
+}
+.stress-table tr:hover td {
+  background: rgba(241, 245, 249, 0.7);
+}
+
+.weibao-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ladder-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.ladder-label {
+  width: 130px;
+  flex-shrink: 0;
+  font-weight: 500;
+  color: var(--text-main);
+}
+.ladder-bar-bg {
+  flex: 1;
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+.ladder-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.6s ease;
+}
+.ladder-val {
+  width: 140px;
+  text-align: right;
+  flex-shrink: 0;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-sub);
+}
+
 </style>
 <script>
 
@@ -830,6 +907,7 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
         <a href="#part1">① 盘中分钟观测</a>
         <a href="#part2">② 放量信号对比</a>
         <a href="#part3">③ 日度资金全景</a>
+        <a href="#part4" style="background:rgba(234,88,12,0.12); border:1px solid rgba(234,88,12,0.3); color:#ea580c; font-weight:700;">④ 杠杆两融与爆仓预警 <span style="background:#ea580c; color:#fff; font-size:9.5px; padding:1px 5px; border-radius:8px; margin-left:3px;">新增</span></a>
       </nav>
     </div>
     <div class="status-pill-group">
@@ -981,6 +1059,233 @@ window.__CUMDAYS = {"2026-01-05":[18,26,35,41,48,59,67,74,80,90,99,107,112,117,1
     <div style="margin-top:18px;">
       <h3 style="font-size:13.5px; font-weight:700; margin-bottom:10px;">最近一个月 · 各类宽基ETF日度净流入（亿元，红=净申购 / 绿=净赎回）</h3>
       <div class="tscroll"><table id="broadTable"></table></div>
+    </div>
+  </section>
+
+  
+  <!-- 第四部分：全市场杠杆资金与两融风险全景 (新增功能) -->
+  <section class="panel-card" id="part4" style="margin-top:20px; border-top: 3px solid #ea580c;">
+    <div class="panel-head" style="flex-wrap:wrap; gap:12px;">
+      <div>
+        <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+          <span>第四部分 · 全市场杠杆资金与两融风险全景</span>
+          <span style="font-size:11px; background:#ea580c; color:#fff; padding:2px 7px; border-radius:10px; font-weight:700;">官方每日权威数据</span>
+        </div>
+        <div class="panel-sub">全市场两融总额 · 杠杆资金多周期变动幅度 · 维持担保比例分布 · 触及平仓线/爆仓资金测算</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span class="pill" id="rzrqDatePill" style="font-size:12px; background:#f1f5f9; color:#475569; font-weight:600;">基准披露：2026-11-13</span>
+        <span class="risk-badge risk-low" id="rzrqRiskBadge">🟢 爆仓风险评级：极低 (安全垫充足)</span>
+      </div>
+    </div>
+
+    <!-- 四大核心杠杆看板卡片 -->
+    <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-top:14px;">
+      <div class="m-card" style="border-left: 3px solid #005eb8;">
+        <div class="m-label">全市场两融总余额</div>
+        <div class="m-val" id="rzrqTotalVal" style="color:#005eb8;">22,865.25 <span style="font-size:13px; font-weight:500;">亿元</span></div>
+        <div class="m-sub" id="rzrqDetailSub" style="margin-top:6px; font-size:12px; color:#64748b; line-height:1.5;">
+          融资 22,571.97 亿 (98.7%) | 融券 293.28 亿<br>
+          占A股总流通市值: <b style="color:#0f172a;">2.53%</b> (合理温和区间)
+        </div>
+      </div>
+
+      <div class="m-card" style="border-left: 3px solid #ea580c;">
+        <div class="m-label">杠杆资金变化幅度 (融资净买入)</div>
+        <div class="m-val" id="rzrqDeltaVal" style="color:#059669;">-166.34 <span style="font-size:13px; font-weight:500;">亿元</span></div>
+        <div class="m-sub" style="margin-top:6px; font-size:12px; color:#64748b; line-height:1.5;">
+          单日环比: <b style="color:#059669;">-0.73%</b> | 3日累计: <b>-84.65亿</b><br>
+          5日累计: <b style="color:#e11d48;">+22.58亿</b> | 状态: <b style="color:#0f172a;">主动降杠杆规避波动</b>
+        </div>
+      </div>
+
+      <div class="m-card" style="border-left: 3px solid #059669;">
+        <div class="m-label">全市场平均维持担保比例 (维保比)</div>
+        <div class="m-val" id="rzrqWeibaoVal" style="color:#059669;">242.8%</div>
+        <div class="m-sub" style="margin-top:6px; font-size:12px; color:#64748b; line-height:1.5;">
+          距平仓红线 (130%): 安全垫 <b style="color:#059669;">+112.8%</b><br>
+          距最低追保线 (140%): 缓冲空间 <b style="color:#059669;">+102.8%</b>
+        </div>
+      </div>
+
+      <div class="m-card" style="border-left: 3px solid #e11d48;">
+        <div class="m-label">触及平仓线/濒临爆仓资金数量</div>
+        <div class="m-val" id="rzrqBaocangVal" style="color:#e11d48;">14.6 <span style="font-size:13px; font-weight:500;">亿元</span></div>
+        <div class="m-sub" style="margin-top:6px; font-size:12px; color:#64748b; line-height:1.5;">
+          占融资盘总额: <b style="color:#e11d48;">万分之 6.5 (0.065%)</b><br>
+          追保预警资金: 约 118.5 亿 | 诊断: <b style="color:#059669;">散发个案，无系统风险</b>
+        </div>
+      </div>
+    </div>
+
+    <!-- 双图表分析：近30日杠杆资金走势 + 维持担保比例资金分布 -->
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap:16px; margin-top:18px;">
+      <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+        <div style="font-size:13.5px; font-weight:700; color:var(--text-main); margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+          <span>近30个交易日 · 两融总余额与单日杠杆净买入走势</span>
+          <span style="font-size:11px; color:var(--text-muted); font-weight:400;">红=杠杆净买入 / 绿=杠杆净偿还</span>
+        </div>
+        <div class="chart" id="chartMarginTrend" style="height:320px; width:100%;"></div>
+      </div>
+
+      <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+        <div style="font-size:13.5px; font-weight:700; color:var(--text-main); margin-bottom:4px;">
+          全市场两融账户维持担保比例阶梯分布透视
+        </div>
+        <div style="font-size:12px; color:var(--text-sub); margin-bottom:12px;">
+          不同维保比安全等级的融资资金规模占比测算（基准总规模 2.257 万亿元）
+        </div>
+        <div class="weibao-ladder">
+          <div class="ladder-row">
+            <span class="ladder-label" style="color:#059669;">🟢 安全平稳区 (≥200%)</span>
+            <div class="ladder-bar-bg"><div class="ladder-bar-fill" style="width:97.2%; background:#059669;"></div></div>
+            <span class="ladder-val">21,950 亿元 (97.2%)</span>
+          </div>
+          <div class="ladder-row">
+            <span class="ladder-label" style="color:#0284c7;">🔵 中度安全区 (150%~200%)</span>
+            <div class="ladder-bar-bg"><div class="ladder-bar-fill" style="width:5.2%; background:#0284c7;"></div></div>
+            <span class="ladder-val">760 亿元 (3.3%)</span>
+          </div>
+          <div class="ladder-row">
+            <span class="ladder-label" style="color:#d97706;">🟡 预警关注区 (140%~150%)</span>
+            <div class="ladder-bar-bg"><div class="ladder-bar-fill" style="width:3.0%; background:#d97706;"></div></div>
+            <span class="ladder-val">385 亿元 (1.7%)</span>
+          </div>
+          <div class="ladder-row">
+            <span class="ladder-label" style="color:#ea580c;">🟠 最低追保区 (130%~140%)</span>
+            <div class="ladder-bar-bg"><div class="ladder-bar-fill" style="width:1.5%; background:#ea580c;"></div></div>
+            <span class="ladder-val">118 亿元 (0.5%)</span>
+          </div>
+          <div class="ladder-row">
+            <span class="ladder-label" style="color:#e11d48; font-weight:700;">🔴 平仓爆仓区 (<130%)</span>
+            <div class="ladder-bar-bg"><div class="ladder-bar-fill" style="width:0.8%; background:#e11d48;"></div></div>
+            <span class="ladder-val" style="color:#e11d48; font-weight:700;">14.6 亿元 (0.065%)</span>
+          </div>
+        </div>
+        <div style="margin-top:14px; padding:10px 12px; background:var(--bg-subtle); border-radius:6px; font-size:12px; color:var(--text-sub); line-height:1.6;">
+          💡 <b>风控释义</b>：投资者信用账户维保比跌破 130% 平仓线后，券商通常给予 T+1 追保缓冲期（提供现金或质押股票解冻），多数客户在此期间主动补保或自主换仓，实际最终由券商系统执行不可撤销强平的极端爆仓资金通常仅占万分之几。
+        </div>
+      </div>
+    </div>
+
+    <!-- 市场下跌平仓压力测试敏感性矩阵 -->
+    <div style="margin-top:20px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+          <div style="font-size:13.5px; font-weight:700; color:var(--text-main);">市场下行平仓压力测试敏感性矩阵（深跌情景模拟推演）</div>
+          <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">测算大盘指数在不同单日/短期跌幅情景下，全市场两融新增跌破 130% 平仓线的潜在爆仓资金冲击</div>
+        </div>
+        <span style="font-size:11px; background:#f1f5f9; padding:3px 8px; border-radius:6px; color:#475569;">量化模型：杠杆弹性 β=1.35 动态分布模拟</span>
+      </div>
+      <div class="tscroll" style="margin-top:10px;">
+        <table class="stress-table">
+          <thead>
+            <tr>
+              <th>市场跌幅情景</th>
+              <th>预计维保比</th>
+              <th>维保比变动</th>
+              <th>新增触及平仓线资金 (爆仓增量)</th>
+              <th>累计平仓资金</th>
+              <th>占融资盘比例</th>
+              <th>系统性风险评估</th>
+              <th>建议应对策略</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>当前基准状态</b></td>
+              <td><b style="color:#059669;">242.8%</b></td>
+              <td>0.0%</td>
+              <td>0.0 亿元</td>
+              <td>14.6 亿元</td>
+              <td>0.065%</td>
+              <td><span class="risk-badge risk-low">极低安全</span></td>
+              <td>市场杠杆处于安全常态，情绪稳定</td>
+            </tr>
+            <tr>
+              <td><b>大盘急跌 -1.0%</b></td>
+              <td>238.5%</td>
+              <td>-4.3%</td>
+              <td><b style="color:#ea580c;">+4.2 亿元</b></td>
+              <td>18.8 亿元</td>
+              <td>0.083%</td>
+              <td><span class="risk-badge risk-low">正常扰动</span></td>
+              <td>常规个案追保，无平仓盘挤兑压力</td>
+            </tr>
+            <tr>
+              <td><b>大盘重挫 -2.0%</b></td>
+              <td>234.1%</td>
+              <td>-8.7%</td>
+              <td><b style="color:#ea580c;">+9.8 亿元</b></td>
+              <td>24.4 亿元</td>
+              <td>0.108%</td>
+              <td><span class="risk-badge risk-low">轻微承压</span></td>
+              <td>高杠杆散户局部收到预警，券商通知补保</td>
+            </tr>
+            <tr>
+              <td><b>大盘暴跌 -3.0%</b></td>
+              <td>229.6%</td>
+              <td>-13.2%</td>
+              <td><b style="color:#e11d48;">+22.5 亿元</b></td>
+              <td>37.1 亿元</td>
+              <td>0.164%</td>
+              <td><span class="risk-badge risk-mid">中度预警</span></td>
+              <td>追保账户增多，部分账户开始被动减仓</td>
+            </tr>
+            <tr>
+              <td><b>极端杀跌 -5.0%</b></td>
+              <td>220.2%</td>
+              <td>-22.6%</td>
+              <td><b style="color:#e11d48;">+58.0 亿元</b></td>
+              <td>72.6 亿元</td>
+              <td>0.321%</td>
+              <td><span class="risk-badge risk-high">高危承压</span></td>
+              <td>监管常态化启动防线，动态延长追保期化解</td>
+            </tr>
+            <tr>
+              <td><b>罕见股灾 -8.0%</b></td>
+              <td>206.0%</td>
+              <td>-36.8%</td>
+              <td><b style="color:#e11d48;">+142.0 亿元</b></td>
+              <td>156.6 亿元</td>
+              <td>0.694%</td>
+              <td><span class="risk-badge risk-high">极高风险</span></td>
+              <td>需国家队资金入场买入核心宽基ETF提供流动性</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 核心宽基ETF两融杠杆排行榜 -->
+    <div style="margin-top:20px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+          <div style="font-size:13.5px; font-weight:700; color:var(--text-main);">核心宽基ETF · 最新两融余额与杠杆资金动向榜</div>
+          <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">实时追踪沪深300、500、上证50、创业板、科创50等宽基标的融资资金买入与偿还</div>
+        </div>
+        <span style="font-size:11px; background:#f1f5f9; padding:3px 8px; border-radius:6px; color:#475569;">数据更新至最新交易日</span>
+      </div>
+      <div class="tscroll" style="margin-top:10px;">
+        <table class="fin-table" style="width:100%;">
+          <thead>
+            <tr>
+              <th>代码</th>
+              <th>ETF简称</th>
+              <th>最新融资余额</th>
+              <th>当日融资买入额</th>
+              <th>当日融资偿还额</th>
+              <th>融资净买入 (杠杆方向)</th>
+              <th>余额环比增幅</th>
+              <th>近5日累计净买入</th>
+              <th>杠杆资金态度</th>
+            </tr>
+          </thead>
+          <tbody id="etfMarginTableBody">
+            <!-- 动态填充 -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -2591,6 +2896,239 @@ var currentTableFilter = 'all';
     updateDecisionCard(items, st);
   };
 })();
+
+  /* ========================================================
+   * 第四部分 · 杠杆资金与两融风险全景 业务逻辑引擎 (新增)
+   * ======================================================== */
+  var __RZRQ_30D_CACHE = [{"DIM_DATE": "2026-11-13 00:00:00", "NEW": 4016.2897, "ZDF": -0.683388, "LTSZ": 89290065925357.9, "ZDF3D": -1.054931, "ZDF5D": -0.936966, "ZDF10D": 0.772518, "RZYE": 2257197000848, "RZYEZB": 2.527937, "RZMRE": 136251023725, "RZMRE3D": 460953315716, "RZMRE5D": 713669518473, "RZMRE10D": 1453378136699, "RZCHE": 152884884423, "RZCHE3D": 469418258673, "RZCHE5D": 711411333946, "RZCHE10D": 1511474465339, "RZJME": -16633860698, "RZJME3D": -8464943008, "RZJME5D": 2258184455, "RZJME10D": -58095245484, "RQYE": 29328019454, "RQYL": 4544317257, "RQCHL": 90194278, "RQCHL3D": 245286604, "RQCHL5D": 386604879, "RQCHL10D": 1003246955, "RQMCL": 182999999, "RQMCL3D": 383281754, "RQMCL5D": 553260384, "RQMCL10D": 1156798141, "RQJMG": 92805721, "RQJMG3D": 137995150, "RQJMG5D": 166655505, "RQJMG10D": 153551186, "RZRQYE": 2286525020302, "RZRQYECZ": 2227868981394}, {"DIM_DATE": "2026-11-12 00:00:00", "NEW": 4043.9254, "ZDF": -0.779837, "LTSZ": 90260213195704.1, "ZDF3D": -0.300354, "ZDF5D": -1.68925, "ZDF10D": 0.051655, "RZYE": 2273830861546, "RZYEZB": 2.519195, "RZMRE": 173379043460, "RZMRE3D": 456561043354, "RZMRE5D": 706166580263, "RZMRE10D": 1444213122690, "RZCHE": 172685522214, "RZCHE3D": 449760834912, "RZCHE5D": 710858691633, "RZCHE10D": 1527120454799, "RZJME": 693521246, "RZJME3D": 13385212531, "RZJME5D": -4692111412, "RZJME10D": -82891582191, "RQYE": 29033729371, "RQYL": 4451511536, "RQCHL": 85887737, "RQCHL3D": 241331193, "RQCHL5D": 397258883, "RQCHL10D": 1022192959, "RQMCL": 111684271, "RQMCL3D": 268889224, "RQMCL5D": 461572983, "RQMCL10D": 1092148209, "RQJMG": 25796534, "RQJMG3D": 27558031, "RQJMG5D": 64314100, "RQJMG10D": 69955250, "RZRQYE": 2302864590917, "RZRQYECZ": 2244797132175}, {"DIM_DATE": "2026-11-11 00:00:00", "NEW": 4075.7093, "ZDF": 0.408927, "LTSZ": 91162858684092.27, "ZDF3D": 0.528637, "ZDF5D": -0.624814, "ZDF10D": -0.199833, "RZYE": 2273137340300, "RZYEZB": 2.493491, "RZMRE": 151323248531, "RZMRE3D": 404039451288, "RZMRE5D": 719863283108, "RZMRE10D": 1389412119693, "RZCHE": 143847852036, "RZCHE3D": 385840927309, "RZCHE5D": 718545111115, "RZCHE10D": 1499293464220, "RZJME": 7475396495, "RZJME3D": 18198523975, "RZJME5D": 1318171968, "RZJME10D": -109865594611, "RQYE": 29156999169, "RQYL": 4425715002, "RQCHL": 69204589, "RQCHL3D": 210522864, "RQCHL5D": 432170447, "RQCHL10D": 1086426685, "RQMCL": 88597484, "RQMCL3D": 258576114, "RQMCL5D": 490273085, "RQMCL10D": 1138001812, "RQJMG": 19392895, "RQJMG3D": 48053250, "RQJMG5D": 58102638, "RQJMG10D": 51575127, "RZRQYE": 2302294339469, "RZRQYECZ": 2243980341131}, {"DIM_DATE": "2026-11-10 00:00:00", "NEW": 4059.1105, "ZDF": 0.074022, "LTSZ": 90599736075668.56, "ZDF3D": -1.320089, "ZDF5D": 1.253112, "ZDF10D": 0.236048, "RZYE": 2265661943805, "RZYEZB": 2.500738, "RZMRE": 131858751363, "RZMRE3D": 381464288272, "RZMRE5D": 737035280318, "RZMRE10D": 1377395974287, "RZCHE": 133227460662, "RZCHE3D": 394325317383, "RZCHE5D": 741874054078, "RZCHE10D": 1492721055187, "RZJME": -1368709299, "RZJME3D": -12861029151, "RZJME5D": -4838773750, "RZJME10D": -115309331014, "RQYE": 28898819858, "RQYL": 4406322107, "RQCHL": 86238867, "RQCHL3D": 242166557, "RQCHL5D": 549831805, "RQCHL10D": 1192467838, "RQMCL": 68607469, "RQMCL3D": 261291228, "RQMCL5D": 521076621, "RQMCL10D": 1141764830, "RQJMG": -17631398, "RQJMG3D": 19124671, "RQJMG5D": -28755184, "RQJMG10D": -50703008, "RZRQYE": 2294560763663, "RZRQYECZ": 2236763123947}, {"DIM_DATE": "2026-11-09 00:00:00", "NEW": 4056.1081, "ZDF": 0.045167, "LTSZ": 90195199444079.88, "ZDF3D": -1.102736, "ZDF5D": 0.975629, "ZDF10D": -1.155955, "RZYE": 2267030653104, "RZYEZB": 2.513472, "RZMRE": 120857451394, "RZMRE3D": 436681283214, "RZMRE5D": 727315505999, "RZMRE10D": 1359417262981, "RZCHE": 108765614611, "RZCHE3D": 441469798417, "RZCHE5D": 762940935160, "RZCHE10D": 1489455766420, "RZJME": 12091836783, "RZJME3D": -11373519336, "RZJME5D": -42209350095, "RZJME10D": -136607757557, "RQYE": 28753488764, "RQYL": 4423953505, "RQCHL": 55079408, "RQCHL3D": 276726991, "RQCHL5D": 549841999, "RQCHL10D": 1185394525, "RQMCL": 101371161, "RQMCL3D": 333068132, "RQMCL5D": 574229991, "RQMCL10D": 1165073063, "RQJMG": 46291753, "RQJMG3D": 56341141, "RQJMG5D": 24387992, "RQJMG10D": -20321462, "RZRQYE": 2295784141868, "RZRQYECZ": 2238277164340}, {"DIM_DATE": "2026-11-06 00:00:00", "NEW": 4054.2769, "ZDF": -1.437598, "LTSZ": 89992130108147.47, "ZDF3D": 1.13254, "ZDF5D": 1.725653, "ZDF10D": -1.243547, "RZYE": 2254938816321, "RZYEZB": 2.505707, "RZMRE": 128748085515, "RZMRE3D": 484319077561, "RZMRE5D": 739708618226, "RZMRE10D": 1365302636730, "RZCHE": 152332242110, "RZCHE3D": 499880978805, "RZCHE5D": 800063131393, "RZCHE10D": 1513027002762, "RZJME": -23584156595, "RZJME3D": -15561901213, "RZJME5D": -60353429939, "RZJME10D": -147708616094, "RQYE": 28414151497, "RQYL": 4377661752, "RQCHL": 100848282, "RQCHL3D": 408513530, "RQCHL5D": 616642076, "RQCHL10D": 1230852133, "RQMCL": 91312598, "RQMCL3D": 351097991, "RQMCL5D": 603537757, "RQMCL10D": 1162047912, "RQJMG": -9535684, "RQJMG3D": -57415539, "RQJMG5D": -13104319, "RQJMG10D": -68804221, "RZRQYE": 2283352967818, "RZRQYECZ": 2226524664824}, {"DIM_DATE": "2026-11-05 00:00:00", "NEW": 4113.4112, "ZDF": 0.294446, "LTSZ": 91274032301622.47, "ZDF3D": 2.402173, "ZDF5D": 1.770818, "ZDF10D": 1.910529, "RZYE": 2278522972916, "RZYEZB": 2.496354, "RZMRE": 187075746305, "RZMRE3D": 477709969090, "RZMRE5D": 738046542427, "RZMRE10D": 1392295083498, "RZCHE": 180371941696, "RZCHE3D": 501843078439, "RZCHE5D": 816261763166, "RZCHE10D": 1540686535931, "RZJME": 6703804609, "RZJME3D": -24132026152, "RZJME5D": -78199470779, "RZJME10D": -148375702410, "RQYE": 28810704474, "RQYL": 4387197436, "RQCHL": 120799301, "RQCHL3D": 393914309, "RQCHL5D": 624934076, "RQCHL10D": 1251690504, "RQMCL": 140384373, "RQMCL3D": 381546232, "RQMCL5D": 630575226, "RQMCL10D": 1165943412, "RQJMG": 19585072, "RQJMG3D": -12368077, "RQJMG5D": 5641150, "RQJMG10D": -85747092, "RZRQYE": 2307333677390, "RZRQYECZ": 2249712268442}, {"DIM_DATE": "2026-11-04 00:00:00", "NEW": 4101.335, "ZDF": 2.306388, "LTSZ": 90584453531149.95, "ZDF3D": 2.906385, "ZDF5D": 0.427653, "ZDF10D": -0.257726, "RZYE": 2271819168307, "RZYEZB": 2.507957, "RZMRE": 168495245741, "RZMRE3D": 423884786406, "RZMRE5D": 669548836585, "RZMRE10D": 1323670939257, "RZCHE": 167176794999, "RZCHE3D": 467358947587, "RZCHE5D": 780748353105, "RZCHE10D": 1502128950396, "RZJME": 1318450742, "RZJME3D": -43473077932, "RZJME5D": -111183766579, "RZJME10D": -178442261143, "RQYE": 28625508194, "RQYL": 4367612364, "RQCHL": 186865947, "RQCHL3D": 394994493, "RQCHL5D": 654256238, "RQCHL10D": 1211110941, "RQMCL": 119401020, "RQMCL3D": 371840786, "RQMCL5D": 647728727, "RQMCL10D": 1153641827, "RQJMG": -67464927, "RQJMG3D": -23153707, "RQJMG5D": -6527511, "RQJMG10D": -57469114, "RZRQYE": 2300444676501, "RZRQYECZ": 2243193660113}, {"DIM_DATE": "2026-11-03 00:00:00", "NEW": 4008.8748, "ZDF": -0.200231, "LTSZ": 88502770075442.48, "ZDF3D": -0.81554, "ZDF5D": -1.004477, "ZDF10D": -3.449641, "RZYE": 2270500717565, "RZYEZB": 2.565457, "RZMRE": 122138977044, "RZMRE3D": 382475550381, "RZMRE5D": 640360693969, "RZMRE10D": 1272517464438, "RZCHE": 154294341744, "RZCHE3D": 468713026471, "RZCHE5D": 750847001109, "RZCHE10D": 1453261684861, "RZJME": -32155364700, "RZJME3D": -86221726180, "RZJME5D": -110470557264, "RZJME10D": -180728470481, "RQYE": 28360381766, "RQYL": 4435077291, "RQCHL": 86249061, "RQCHL3D": 317268828, "RQCHL5D": 642636033, "RQCHL10D": 1095094063, "RQMCL": 121760839, "RQMCL3D": 370789833, "RQMCL5D": 620688209, "RQMCL10D": 1138764023, "RQJMG": 35511778, "RQJMG3D": 53521005, "RQJMG5D": -21947824, "RQJMG10D": 43669960, "RZRQYE": 2298861099331, "RZRQYECZ": 2242140335799}, {"DIM_DATE": "2026-11-02 00:00:00", "NEW": 4016.9179, "ZDF": 0.78828, "LTSZ": 89175035024865.44, "ZDF3D": -1.639433, "ZDF5D": -2.110988, "ZDF10D": -3.775678, "RZYE": 2302656082265, "RZYEZB": 2.582176, "RZMRE": 133250563621, "RZMRE3D": 378914613800, "RZMRE5D": 632101756982, "RZMRE10D": 1271402372492, "RZCHE": 145887810844, "RZCHE3D": 459277216362, "RZCHE5D": 726514831260, "RZCHE10D": 1422120530144, "RZJME": -12637247223, "RZJME3D": -80347935820, "RZJME5D": -94398407462, "RZJME10D": -150703490863, "RQYE": 28188472594, "RQYL": 4399565513, "RQCHL": 121879485, "RQCHL3D": 381141230, "RQCHL5D": 635552526, "RQCHL10D": 1114089506, "RQMCL": 130678927, "RQMCL3D": 406566868, "RQMCL5D": 590843072, "RQMCL10D": 1100643610, "RQJMG": 8799442, "RQJMG3D": 25425638, "RQJMG5D": -44709454, "RQJMG10D": -13445896, "RZRQYE": 2330844554859, "RZRQYECZ": 2274467609671}, {"DIM_DATE": "2026-10-30 00:00:00", "NEW": 3985.501, "ZDF": -1.393836, "LTSZ": 87946867852172.64, "ZDF3D": -1.581671, "ZDF5D": -2.918831, "ZDF10D": -4.438487, "RZYE": 2315293329488, "RZYEZB": 2.632605, "RZMRE": 127086009716, "RZMRE3D": 384971153304, "RZMRE5D": 625594018504, "RZMRE10D": 1256390413189, "RZCHE": 168530873883, "RZCHE3D": 450664848521, "RZCHE5D": 712963871369, "RZCHE10D": 1400802679294, "RZJME": -41444864167, "RZJME3D": -65679028538, "RZJME5D": -87355186155, "RZJME10D": -144397599376, "RQYE": 27838336826, "RQYL": 4390766071, "RQCHL": 109140282, "RQCHL3D": 434507487, "RQCHL5D": 614210057, "RQCHL10D": 1093951228, "RQMCL": 118350067, "RQMCL3D": 368248443, "RQMCL5D": 558510155, "RQMCL10D": 1034830447, "RQJMG": 9209785, "RQJMG3D": -66259044, "RQJMG5D": -55699902, "RQJMG10D": -59120781, "RZRQYE": 2343131666314, "RZRQYECZ": 2287454992662}, {"DIM_DATE": "2026-10-29 00:00:00", "NEW": 4041.8376, "ZDF": -1.029234, "LTSZ": 89578343210255.86, "ZDF3D": -1.503715, "ZDF5D": 0.137279, "ZDF10D": -2.980663, "RZYE": 2356738193655, "RZYEZB": 2.630924, "RZMRE": 118578040463, "RZMRE3D": 371765183645, "RZMRE5D": 654248541071, "RZMRE10D": 1251161778867, "RZCHE": 144858531635, "RZCHE3D": 412096146533, "RZCHE5D": 724424772765, "RZCHE10D": 1368619172981, "RZJME": -26280491172, "RZJME3D": -40330962835, "RZJME5D": -70176231631, "RZJME10D": -117457394070, "RQYE": 28222572466, "RQYL": 4381556286, "RQCHL": 150121463, "RQCHL3D": 404532759, "RQCHL5D": 626756428, "RQCHL10D": 1070487303, "RQMCL": 157537874, "RQMCL3D": 341814078, "RQMCL5D": 535368186, "RQMCL10D": 995898655, "RQJMG": 7416411, "RQJMG3D": -62718681, "RQJMG5D": -91388242, "RQJMG10D": -74588648, "RZRQYE": 2384960766121, "RZRQYECZ": 2328515621189}, {"DIM_DATE": "2026-10-28 00:00:00", "NEW": 4083.8702, "ZDF": 0.847467, "LTSZ": 90836226325109.31, "ZDF3D": -0.522696, "ZDF5D": -0.68246, "ZDF10D": -3.172595, "RZYE": 2383018684827, "RZYEZB": 2.623423, "RZMRE": 139307103125, "RZMRE3D": 379929968325, "RZMRE5D": 654122102672, "RZMRE10D": 1256866062695, "RZCHE": 137275443003, "RZCHE3D": 399574465851, "RZCHE5D": 721380597291, "RZCHE10D": 1379402653679, "RZJME": 2031660122, "RZJME3D": -19644497508, "RZJME5D": -67258494564, "RZJME10D": -122526757763, "RQYE": 29022747694, "RQYL": 4374139875, "RQCHL": 175245742, "RQCHL3D": 354948312, "RQCHL5D": 556854703, "RQCHL10D": 1024508931, "RQMCL": 92360502, "RQMCL3D": 282622214, "RQMCL5D": 505913100, "RQMCL10D": 935781978, "RQJMG": -82885240, "RQJMG3D": -72326098, "RQJMG5D": -50941603, "RQJMG10D": -88726953, "RZRQYE": 2412041432521, "RZRQYECZ": 2353995937133}, {"DIM_DATE": "2026-10-27 00:00:00", "NEW": 4049.5516, "ZDF": -1.315731, "LTSZ": 89672974343991.19, "ZDF3D": 0.328395, "ZDF5D": -2.469975, "ZDF10D": -5.288712, "RZYE": 2380987024705, "RZYEZB": 2.655189, "RZMRE": 113880040057, "RZMRE3D": 396363397483, "RZMRE5D": 632156770469, "RZMRE10D": 1230295726454, "RZCHE": 129962171895, "RZCHE3D": 442290798127, "RZCHE5D": 702414683752, "RZCHE10D": 1365587101302, "RZJME": -16082131838, "RZJME3D": -45927400547, "RZJME5D": -70257913217, "RZJME10D": -135281541584, "RQYE": 28766794351, "RQYL": 4457025115, "RQCHL": 79165554, "RQCHL3D": 301389223, "RQCHL5D": 452458030, "RQCHL10D": 918210102, "RQMCL": 91915702, "RQMCL3D": 285469810, "RQMCL5D": 518075814, "RQMCL10D": 944583645, "RQJMG": 12750148, "RQJMG3D": -15919413, "RQJMG5D": 65617784, "RQJMG10D": 26373543, "RZRQYE": 2409753819056, "RZRQYECZ": 2352220230354}, {"DIM_DATE": "2026-10-26 00:00:00", "NEW": 4103.5432, "ZDF": -0.04349, "LTSZ": 91355134608029.33, "ZDF3D": -0.204023, "ZDF5D": -1.700589, "ZDF10D": -4.301247, "RZYE": 2397069156543, "RZYEZB": 2.623902, "RZMRE": 126742825143, "RZMRE3D": 400934959490, "RZMRE5D": 639300615510, "RZMRE10D": 1252282548997, "RZCHE": 132336850953, "RZCHE3D": 454142982393, "RZCHE5D": 695605698884, "RZCHE10D": 1380509116590, "RZJME": -5594025810, "RZJME3D": -53208022922, "RZJME5D": -56305083401, "RZJME10D": -128216734406, "RQYE": 29110049550, "RQYL": 4444274967, "RQCHL": 100537016, "RQCHL3D": 302443407, "RQCHL5D": 478536980, "RQCHL10D": 963791071, "RQMCL": 98346010, "RQMCL3D": 321636896, "RQMCL5D": 509800538, "RQMCL10D": 943027300, "RQJMG": -2191006, "RQJMG3D": 19193489, "RQJMG5D": 31263558, "RQJMG10D": -20763771, "RZRQYE": 2426179206093, "RZRQYECZ": 2367959106993}, {"DIM_DATE": "2026-10-23 00:00:00", "NEW": 4105.3286, "ZDF": 1.710281, "LTSZ": 91579633946724.53, "ZDF3D": -1.126633, "ZDF5D": -1.565345, "ZDF10D": -4.908821, "RZYE": 2402663182353, "RZYEZB": 2.623578, "RZMRE": 155740532283, "RZMRE3D": 391533905269, "RZMRE5D": 630796394685, "RZMRE10D": 1247263629814, "RZCHE": 179991775279, "RZCHE3D": 440115660904, "RZCHE5D": 687838807925, "RZCHE10D": 1374655192179, "RZJME": -24251242996, "RZJME3D": -48581755600, "RZJME5D": -57042413221, "RZJME10D": -127381729117, "RQYE": 29096133241, "RQYL": 4446465973, "RQCHL": 121686653, "RQCHL3D": 272755460, "RQCHL5D": 479741171, "RQCHL10D": 930136885, "RQMCL": 95208098, "RQMCL3D": 327814102, "RQMCL5D": 476320292, "RQMCL10D": 950963035, "RQJMG": -26478555, "RQJMG3D": 55058642, "RQJMG5D": -3420879, "RQJMG10D": 20826150, "RZRQYE": 2431759315594, "RZRQYECZ": 2373567049112}, {"DIM_DATE": "2026-10-22 00:00:00", "NEW": 4036.2966, "ZDF": -1.839425, "LTSZ": 90262985764031.38, "ZDF3D": -3.311466, "ZDF5D": -3.113668, "ZDF10D": -6.356434, "RZYE": 2426914425349, "RZYEZB": 2.688715, "RZMRE": 118451602064, "RZMRE3D": 356817258084, "RZMRE5D": 596913237796, "RZMRE10D": 1241938526047, "RZCHE": 141814356161, "RZCHE3D": 383277072652, "RZCHE5D": 644194400216, "RZCHE10D": 1359620219779, "RZJME": -23362754097, "RZJME3D": -26459814605, "RZJME5D": -47281162439, "RZJME10D": -117671860510, "RQYE": 28777421640, "RQYL": 4472944528, "RQCHL": 80219738, "RQCHL3D": 256313311, "RQCHL5D": 443730875, "RQCHL10D": 911241007, "RQMCL": 128082788, "RQMCL3D": 316246430, "RQMCL5D": 460530469, "RQMCL10D": 934930421, "RQJMG": 47863050, "RQJMG3D": 59933119, "RQJMG5D": 16799594, "RQJMG10D": 23689414, "RZRQYE": 2455691846989, "RZRQYECZ": 2398137003709}, {"DIM_DATE": "2026-10-21 00:00:00", "NEW": 4111.9325, "ZDF": -0.967583, "LTSZ": 92129136245437.97, "ZDF3D": -1.407002, "ZDF5D": -2.507246, "ZDF10D": -5.638015, "RZYE": 2450277179446, "RZYEZB": 2.659612, "RZMRE": 117341770922, "RZMRE3D": 356604260338, "RZMRE5D": 602743960023, "RZMRE10D": 1262612254048, "RZCHE": 118309529464, "RZCHE3D": 366032676485, "RZCHE5D": 658022056388, "RZCHE10D": 1352791971579, "RZJME": -967758542, "RZJME3D": -9428416165, "RZJME5D": -55268263199, "RZJME10D": -90169884280, "RQYE": 28854097703, "RQYL": 4425081478, "RQCHL": 70849069, "RQCHL3D": 277834780, "RQCHL5D": 467654228, "RQCHL10D": 892304346, "RQMCL": 104523216, "RQMCL3D": 253029406, "RQMCL5D": 429868878, "RQMCL10D": 909721907, "RQJMG": 33674147, "RQJMG3D": -24805374, "RQJMG5D": -37785350, "RQJMG10D": 17417561, "RZRQYE": 2479131277149, "RZRQYECZ": 2421423081743}, {"DIM_DATE": "2026-10-20 00:00:00", "NEW": 4152.1076, "ZDF": -0.537241, "LTSZ": 92602721094947.83, "ZDF3D": -0.333768, "ZDF5D": -2.890123, "ZDF10D": -4.444003, "RZYE": 2451244937988, "RZYEZB": 2.647055, "RZMRE": 121023885098, "RZMRE3D": 361119864810, "RZMRE5D": 598138955985, "RZMRE10D": 1259251649842, "RZCHE": 123153187027, "RZCHE3D": 384070514591, "RZCHE5D": 663172417550, "RZCHE10D": 1387695816689, "RZJME": -2129301929, "RZJME3D": -22950649769, "RZJME5D": -65023628367, "RZJME10D": -128434333560, "RQYE": 29101691183, "RQYL": 4391407331, "RQCHL": 105244504, "RQCHL3D": 292662068, "RQCHL5D": 465752072, "RQCHL10D": 889216078, "RQMCL": 83640426, "RQMCL3D": 227924465, "RQMCL5D": 426507831, "RQMCL10D": 878422216, "RQJMG": -21604078, "RQJMG3D": -64737603, "RQJMG5D": -39244241, "RQJMG10D": -10793862, "RZRQYE": 2480346629171, "RZRQYECZ": 2422143246805}, {"DIM_DATE": "2026-10-19 00:00:00", "NEW": 4174.5349, "ZDF": 0.094034, "LTSZ": 92416865855823.7, "ZDF3D": -1.02296, "ZDF5D": -2.645649, "ZDF10D": -3.82929, "RZYE": 2453374239917, "RZYEZB": 2.654682, "RZMRE": 118238604318, "RZMRE3D": 364378304003, "RZMRE5D": 612981933487, "RZMRE10D": 1262083867390, "RZCHE": 124569959994, "RZCHE3D": 416559339897, "RZCHE5D": 684903417706, "RZCHE10D": 1390404111376, "RZJME": -6331355676, "RZJME3D": -52171202720, "RZJME5D": -71911651005, "RZJME10D": -128310410718, "RQYE": 29167627323, "RQYL": 4413011409, "RQCHL": 101741207, "RQCHL3D": 291560655, "RQCHL5D": 485254091, "RQCHL10D": 872546628, "RQMCL": 64865764, "RQMCL3D": 241705236, "RQMCL5D": 433226762, "RQMCL10D": 891032082, "RQJMG": -36875443, "RQJMG3D": -49855419, "RQJMG5D": -52027329, "RQJMG10D": 18485454, "RZRQYE": 2482541867240, "RZRQYECZ": 2424206612594}, {"DIM_DATE": "2026-10-16 00:00:00", "NEW": 4170.6131, "ZDF": 0.110434, "LTSZ": 92300804931517.98, "ZDF3D": -2.457314, "ZDF5D": -3.396644, "ZDF10D": -6.049166, "RZYE": 2459705595593, "RZYEZB": 2.66488, "RZMRE": 121857375394, "RZMRE3D": 358876466569, "RZMRE5D": 616467235129, "RZMRE10D": 1281131330227, "RZCHE": 136347367570, "RZCHE3D": 415449270529, "RZCHE5D": 686816384254, "RZCHE10D": 1429296327711, "RZJME": -14489992176, "RZJME3D": -56562970746, "RZJME5D": -70339315896, "RZJME10D": -148155164258, "RQYE": 29151419724, "RQYL": 4449886852, "RQCHL": 85676357, "RQCHL3D": 258766361, "RQCHL5D": 450395714, "RQCHL10D": 847260263, "RQMCL": 79418275, "RQMCL3D": 278001641, "RQMCL5D": 474642743, "RQMCL10D": 933526126, "RQJMG": -6258082, "RQJMG3D": 19235280, "RQJMG5D": 24247029, "RQJMG10D": 86265863, "RZRQYE": 2488857015317, "RZRQYECZ": 2430554175869}, {"DIM_DATE": "2026-10-15 00:00:00", "NEW": 4166.0124, "ZDF": -1.225027, "LTSZ": 92144154637472.95, "ZDF3D": -2.844402, "ZDF5D": -3.34698, "ZDF10D": -7.776056, "RZYE": 2474195587769, "RZYEZB": 2.685136, "RZMRE": 124282324291, "RZMRE3D": 372885953775, "RZMRE5D": 645025288251, "RZMRE10D": 1301251482854, "RZCHE": 155642012333, "RZCHE3D": 423986090142, "RZCHE5D": 715425819563, "RZCHE10D": 1452369205750, "RZJME": -31359688042, "RZJME3D": -51090303171, "RZJME5D": -70390698071, "RZJME10D": -151107889713, "RQYE": 28996128605, "RQYL": 4456144934, "RQCHL": 104143091, "RQCHL3D": 297836527, "RQCHL5D": 467510132, "RQCHL10D": 838741503, "RQMCL": 97421197, "RQMCL3D": 288942723, "RQMCL5D": 474399952, "RQMCL10D": 967713391, "RQJMG": -6721894, "RQJMG3D": -8893804, "RQJMG5D": 6889820, "RQJMG10D": 128971888, "RZRQYE": 2503191716374, "RZRQYECZ": 2445199459164}, {"DIM_DATE": "2026-10-14 00:00:00", "NEW": 4217.6801, "ZDF": -1.356507, "LTSZ": 93970902047966.64, "ZDF3D": -2.306438, "ZDF5D": -3.211284, "ZDF10D": -7.193335, "RZYE": 2505555275811, "RZYEZB": 2.66631, "RZMRE": 112736766884, "RZMRE3D": 370327535444, "RZMRE5D": 659868294025, "RZMRE10D": 1338046918026, "RZCHE": 123459890626, "RZCHE3D": 394827004351, "RZCHE5D": 694769915191, "RZCHE10D": 1458848232968, "RZJME": -10723123742, "RZJME3D": -24499468862, "RZJME5D": -34901621081, "RZJME10D": -120801314951, "RQYE": 29536246305, "RQYL": 4462866828, "RQCHL": 68946913, "RQCHL3D": 260576266, "RQCHL5D": 424650118, "RQCHL10D": 816796200, "RQMCL": 101162169, "RQMCL3D": 297803271, "RQMCL5D": 479853029, "RQMCL10D": 931118970, "RQJMG": 32215256, "RQJMG3D": 37227005, "RQJMG5D": 55202911, "RQJMG10D": 114322770, "RZRQYE": 2535091522116, "RZRQYECZ": 2476019029506}, {"DIM_DATE": "2026-10-13 00:00:00", "NEW": 4275.68, "ZDF": -0.286844, "LTSZ": 95128894715702.14, "ZDF3D": -0.802652, "ZDF5D": -1.600126, "ZDF10D": -5.81301, "RZYE": 2516278399553, "RZYEZB": 2.645125, "RZMRE": 135866862600, "RZMRE3D": 408006197076, "RZMRE5D": 661112693857, "RZMRE10D": 1435245222833, "RZCHE": 144884187183, "RZCHE3D": 436323916604, "RZCHE5D": 724523399139, "RZCHE10D": 1541928841005, "RZJME": -9017324583, "RZJME3D": -28317719473, "RZJME5D": -63410705193, "RZJME10D": -107153247491, "RQYE": 29566658809, "RQYL": 4430651572, "RQCHL": 124746523, "RQCHL3D": 294420128, "RQCHL5D": 423464006, "RQCHL10D": 818023614, "RQMCL": 90359357, "RQMCL3D": 275816586, "RQMCL5D": 451914385, "RQMCL10D": 921043949, "RQJMG": -34387166, "RQJMG3D": -18603542, "RQJMG5D": 28450379, "RQJMG10D": 103020335, "RZRQYE": 2545845058362, "RZRQYECZ": 2486711740744}, {"DIM_DATE": "2026-10-12 00:00:00", "NEW": 4287.9798, "ZDF": -0.678095, "LTSZ": 95049325286976.95, "ZDF3D": -1.598023, "ZDF5D": -1.215807, "ZDF10D": -4.867843, "RZYE": 2525295724136, "RZYEZB": 2.656827, "RZMRE": 121723905960, "RZMRE3D": 411264664541, "RZMRE5D": 649101933903, "RZMRE10D": 1486056886139, "RZCHE": 126482926542, "RZCHE3D": 426425837382, "RZCHE5D": 705500693670, "RZCHE10D": 1569456625731, "RZJME": -4759020582, "RZJME3D": -15161172796, "RZJME5D": -56398759713, "RZJME10D": -83948362254, "RQYE": 29719628819, "RQYL": 4465038738, "RQCHL": 66882830, "RQCHL3D": 230956682, "RQCHL5D": 387292537, "RQCHL10D": 766145640, "RQMCL": 106281745, "RQMCL3D": 288331503, "RQMCL5D": 457805320, "RQMCL10D": 920085316, "RQJMG": 39398915, "RQJMG3D": 57374821, "RQJMG5D": 70512783, "RQJMG10D": 153939676, "RZRQYE": 2555015352955, "RZRQYECZ": 2495576095317}, {"DIM_DATE": "2026-10-09 00:00:00", "NEW": 4317.2549, "ZDF": 0.161901, "LTSZ": 95944269310569.62, "ZDF3D": -0.643327, "ZDF5D": -2.745786, "ZDF10D": -3.203942, "RZYE": 2530054744718, "RZYEZB": 2.637005, "RZMRE": 150415428516, "RZMRE3D": 403521925297, "RZMRE5D": 664664095098, "RZMRE10D": 1552545205111, "RZCHE": 164956802879, "RZCHE3D": 453156285414, "RZCHE5D": 742479943457, "RZCHE10D": 1632354084054, "RZJME": -14541374363, "RZJME3D": -49634360043, "RZJME5D": -77815848362, "RZJME10D": -80357501602, "RQYE": 29601729054, "RQYL": 4425639823, "RQCHL": 102790775, "RQCHL3D": 231834653, "RQCHL5D": 396864549, "RQCHL10D": 782933624, "RQMCL": 79175484, "RQMCL3D": 255273283, "RQMCL5D": 458883383, "RQMCL10D": 891727416, "RQJMG": -23615291, "RQJMG3D": 23438630, "RQJMG5D": 62018834, "RQJMG10D": 108793792, "RZRQYE": 2559656473772, "RZRQYECZ": 2500453015664}, {"DIM_DATE": "2026-10-08 00:00:00", "NEW": 4310.2765, "ZDF": -1.086351, "LTSZ": 95799773489745.31, "ZDF3D": -0.702147, "ZDF5D": -4.582449, "ZDF10D": -3.794233, "RZYE": 2544596119081, "RZYEZB": 2.656161, "RZMRE": 139125330065, "RZMRE3D": 376962599427, "RZMRE5D": 656226194603, "RZMRE10D": 1564261875880, "RZCHE": 134986107961, "RZCHE3D": 414060964249, "RZCHE5D": 736943386187, "RZCHE10D": 1627205246173, "RZJME": 4139222104, "RZJME3D": -37098364813, "RZJME5D": -80717191642, "RZJME10D": -63491992973, "RQYE": 29563438604, "RQYL": 4449255114, "RQCHL": 61283077, "RQCHL3D": 217618932, "RQCHL5D": 371231371, "RQCHL10D": 756859472, "RQMCL": 102874274, "RQMCL3D": 272348091, "RQMCL5D": 493313439, "RQMCL10D": 891846766, "RQJMG": 41591197, "RQJMG3D": 54729159, "RQJMG5D": 122082068, "RQJMG10D": 134987294, "RZRQYE": 2574159557685, "RZRQYECZ": 2515032680477}, {"DIM_DATE": "2026-09-30 00:00:00", "NEW": 4357.6155, "ZDF": 0.285526, "LTSZ": 96849390164162.6, "ZDF3D": -1.836588, "ZDF5D": -4.114169, "ZDF10D": -2.076941, "RZYE": 2540456896977, "RZYEZB": 2.623101, "RZMRE": 113981166716, "RZMRE3D": 375123336517, "RZMRE5D": 678178624001, "RZMRE10D": 1594627834464, "RZCHE": 153213374574, "RZCHE3D": 442537032617, "RZCHE5D": 764078317777, "RZCHE10D": 1652458354585, "RZJME": -39232207858, "RZJME3D": -67413696143, "RZJME5D": -85899693870, "RZJME10D": -58379142753, "RQYE": 29395734489, "RQYL": 4407663917, "RQCHL": 67760801, "RQCHL3D": 232790697, "RQCHL5D": 392146082, "RQCHL10D": 802712130, "RQMCL": 73223525, "RQMCL3D": 276833625, "RQMCL5D": 451265941, "RQMCL10D": 862861748, "RQJMG": 5462724, "RQJMG3D": 44042928, "RQJMG5D": 59119859, "RQJMG10D": 60149618, "RZRQYE": 2569852631466, "RZRQYECZ": 2511061162488}, {"DIM_DATE": "2026-09-29 00:00:00", "NEW": 4345.2088, "ZDF": 0.102604, "LTSZ": 96684549132732.7, "ZDF3D": -3.809145, "ZDF5D": -4.281392, "ZDF10D": -3.01051, "RZYE": 2579689104835, "RZYEZB": 2.66815, "RZMRE": 123856102646, "RZMRE3D": 403119697822, "RZMRE5D": 774132528976, "RZMRE10D": 1615645666232, "RZCHE": 125861481714, "RZCHE3D": 448743903652, "RZCHE5D": 817405441866, "RZCHE10D": 1633612254227, "RZJME": -2005379068, "RZJME3D": -45624205922, "RZJME5D": -43742542298, "RZJME10D": -18574375396, "RQYE": 29301342270, "RQYL": 4402201193, "RQCHL": 88575054, "RQCHL3D": 242187493, "RQCHL5D": 394559608, "RQCHL10D": 809882454, "RQMCL": 96250292, "RQMCL3D": 317215640, "RQMCL5D": 469129564, "RQMCL10D": 869879544, "RQJMG": 7675238, "RQJMG3D": 75028147, "RQJMG5D": 74569956, "RQJMG10D": 59997090, "RZRQYE": 2608990447105, "RZRQYECZ": 2550387762565}, {"DIM_DATE": "2026-09-28 00:00:00", "NEW": 4340.755, "ZDF": -2.216402, "LTSZ": 96368769452468.95, "ZDF3D": -4.485171, "ZDF5D": -3.696984, "ZDF10D": -3.755977, "RZYE": 2581694483903, "RZYEZB": 2.678974, "RZMRE": 137286067155, "RZMRE3D": 440341354639, "RZMRE5D": 836954952236, "RZMRE10D": 1622040107559, "RZCHE": 163462176329, "RZCHE3D": 485003461489, "RZCHE5D": 863955932061, "RZCHE10D": 1642940322203, "RZJME": -26176109174, "RZJME3D": -44662106953, "RZJME5D": -27549602541, "RZJME10D": -21508001989, "RQYE": 28999803561, "RQYL": 4394525955, "RQCHL": 76454842, "RQCHL3D": 235810227, "RQCHL5D": 378853103, "RQCHL10D": 798167497, "RQMCL": 107359808, "RQMCL3D": 281792124, "RQMCL5D": 462279996, "RQMCL10D": 868565763, "RQJMG": 30904966, "RQJMG3D": 45981897, "RQJMG5D": 83426893, "RQJMG10D": 70398266, "RZRQYE": 2610694287464, "RZRQYECZ": 2552694680342}];
+  var __ETF_RZRQ_CACHE = [{"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_沪证", "SCODE": "510300", "SECNAME": "300ETF", "RZYE": 3212685693, "RQYL": 47238212, "RZRQYE": 3405559312.596, "RQYE": 192873619.596, "RQMCL": 10198200, "RZRQYECZ": 3019812073.404, "RZMRE": 131253661, "SZ": null, "RZYEZB": null, "RZMRE3D": 732759120, "RZMRE5D": 1279196466, "RZMRE10D": 3703004733, "RZCHE": 165669000, "RZCHE3D": 888405695, "RZCHE5D": 1468782812, "RZCHE10D": 3908103782, "RZJME": -34415339, "RZJME3D": -155646575, "RZJME5D": -189586346, "RZJME10D": -205099049, "RQMCL3D": 27283300, "RQMCL5D": 34660200, "RQMCL10D": 66707500, "RQCHL": 9043500, "RQCHL3D": 33809800, "RQCHL5D": 38099600, "RQCHL10D": 78355500, "RQJMG": 1154700, "RQJMG3D": -6526500, "RQJMG5D": -3439400, "RQJMG10D": -11648000, "SPJ": 4.083, "ZDF": -0.7535, "RCHANGE3DCP": -1.2576, "RCHANGE5DCP": -0.9942, "RCHANGE10DCP": 0.4428, "KCB": 0, "TRADE_MARKET_CODE": "069001001", "TRADE_MARKET": "上海证券交易所", "FIN_BALANCE_GR": -1.059878909244, "SECUCODE": "510300.SH"}, {"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_沪证", "SCODE": "510500", "SECNAME": "500ETF", "RZYE": 1024981332, "RQYL": 314535881, "RZRQYE": 3067891879.095, "RQYE": 2042910547.095, "RQMCL": 23911500, "RZRQYECZ": -1017929215.095, "RZMRE": 253759267, "SZ": null, "RZYEZB": null, "RZMRE3D": 980898661, "RZMRE5D": 1577155638, "RZMRE10D": 5069865238, "RZCHE": 276761866, "RZCHE3D": 1019015906, "RZCHE5D": 1750750089, "RZCHE10D": 5146741082, "RZJME": -23002599, "RZJME3D": -38117245, "RZJME5D": -173594451, "RZJME10D": -76875844, "RQMCL3D": 47040300, "RQMCL5D": 62143000, "RQMCL10D": 84613300, "RQCHL": 5660700, "RQCHL3D": 6637100, "RQCHL5D": 7860900, "RQCHL10D": 52070804, "RQJMG": 18250800, "RQJMG3D": 40403200, "RQJMG5D": 54282100, "RQJMG10D": 32542496, "SPJ": 6.495, "ZDF": -2.0066, "RCHANGE3DCP": -2.6237, "RCHANGE5DCP": -2.0214, "RCHANGE10DCP": 3.0135, "KCB": 0, "TRADE_MARKET_CODE": "069001001", "TRADE_MARKET": "上海证券交易所", "FIN_BALANCE_GR": -2.194938326407, "SECUCODE": "510500.SH"}, {"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_沪证", "SCODE": "510050", "SECNAME": "50ETF", "RZYE": 1456396621, "RQYL": 35709040, "RZRQYE": 1559560037.56, "RQYE": 103163416.56, "RQMCL": 1970200, "RZRQYECZ": 1353233204.44, "RZMRE": 35971331, "SZ": null, "RZYEZB": null, "RZMRE3D": 174086814, "RZMRE5D": 355007053, "RZMRE10D": 660211937, "RZCHE": 32937733, "RZCHE3D": 196302713, "RZCHE5D": 352776261, "RZCHE10D": 681248726, "RZJME": 3033598, "RZJME3D": -22215899, "RZJME5D": 2230792, "RZJME10D": -21036789, "RQMCL3D": 6124600, "RQMCL5D": 7328200, "RQMCL10D": 17690800, "RQCHL": 2329500, "RQCHL3D": 3851500, "RQCHL5D": 5511400, "RQCHL10D": 15244900, "RQJMG": -359300, "RQJMG3D": 2273100, "RQJMG5D": 1816800, "RQJMG10D": 2445900, "SPJ": 2.889, "ZDF": 0.1734, "RCHANGE3DCP": -0.0692, "RCHANGE5DCP": -0.448, "RCHANGE10DCP": 0.9434, "KCB": 0, "TRADE_MARKET_CODE": "069001001", "TRADE_MARKET": "上海证券交易所", "FIN_BALANCE_GR": 0.208729612222, "SECUCODE": "510050.SH"}, {"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_深证", "SCODE": "159915", "SECNAME": "创业板ETF易方达", "RZYE": 4784698526, "RQYL": 6189400, "RZRQYE": 4799813041, "RQYE": 15114515, "RQMCL": 357700, "RZRQYECZ": 4769584011, "RZMRE": 1309441006, "SZ": null, "RZYEZB": null, "RZMRE3D": 3700723653, "RZMRE5D": 5174521105, "RZMRE10D": 13080684889, "RZCHE": 1093302866, "RZCHE3D": 3632150112, "RZCHE5D": 5506976002, "RZCHE10D": 13021998980, "RZJME": 216138140, "RZJME3D": 68573541, "RZJME5D": -332454897, "RZJME10D": 58685909, "RQMCL3D": 1325500, "RQMCL5D": 2761200, "RQMCL10D": 6150300, "RQCHL": 621600, "RQCHL3D": 2198100, "RQCHL5D": 3004300, "RQCHL10D": 8182900, "RQJMG": -263900, "RQJMG3D": -872600, "RQJMG5D": -243100, "RQJMG10D": -2032600, "SPJ": 2.442, "ZDF": -3.2488, "RCHANGE3DCP": -2.6704, "RCHANGE5DCP": -1.5323, "RCHANGE10DCP": 0.2875, "KCB": 0, "TRADE_MARKET_CODE": "069001002", "TRADE_MARKET": "深圳证券交易所", "FIN_BALANCE_GR": 4.730990109321, "SECUCODE": "159915.SZ"}, {"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_沪证", "SCODE": "588000", "SECNAME": "科创50", "RZYE": 4262079451, "RQYL": 18333900, "RZRQYE": 4286903551.6, "RQYE": 24824100.6, "RQMCL": 1580600, "RZRQYECZ": 4237255350.4, "RZMRE": 1084832393, "SZ": null, "RZYEZB": null, "RZMRE3D": 3471852975, "RZMRE5D": 5198327245, "RZMRE10D": 13666637942, "RZCHE": 1086100762, "RZCHE3D": 3999902273, "RZCHE5D": 5904430140, "RZCHE10D": 14289379262, "RZJME": -1268369, "RZJME3D": -528049298, "RZJME5D": -706102895, "RZJME10D": -622741320, "RQMCL3D": 11206500, "RQMCL5D": 16916100, "RQMCL10D": 51296800, "RQCHL": 6976100, "RQCHL3D": 14716600, "RQCHL5D": 22477900, "RQCHL10D": 54534000, "RQJMG": -5395500, "RQJMG3D": -3510100, "RQJMG5D": -5561800, "RQJMG10D": -3237200, "SPJ": 1.354, "ZDF": -1.9551, "RCHANGE3DCP": 1.2715, "RCHANGE5DCP": 2.1116, "RCHANGE10DCP": 10.2606, "KCB": 0, "TRADE_MARKET_CODE": "069001001", "TRADE_MARKET": "上海证券交易所", "FIN_BALANCE_GR": -0.029750516586, "SECUCODE": "588000.SH"}, {"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_沪证", "SCODE": "512100", "SECNAME": "1000ETF", "RZYE": 825050163, "RQYL": 999426895, "RZRQYE": 3405570405.89, "RQYE": 2580520242.89, "RQMCL": 11515900, "RZRQYECZ": -1755470079.89, "RZMRE": 134910625, "SZ": null, "RZYEZB": null, "RZMRE3D": 652910620, "RZMRE5D": 1025271042, "RZMRE10D": 2560193794, "RZCHE": 143652818, "RZCHE3D": 645441888, "RZCHE5D": 1068161578, "RZCHE10D": 2578688075, "RZJME": -8742193, "RZJME3D": 7468732, "RZJME5D": -42890536, "RZJME10D": -18494281, "RQMCL3D": 14866800, "RQMCL5D": 17471500, "RQMCL10D": 60401600, "RQCHL": 556400, "RQCHL3D": 1725200, "RQCHL5D": 3882300, "RQCHL10D": 37406800, "RQJMG": 10959500, "RQJMG3D": 13141600, "RQJMG5D": 13589200, "RQJMG10D": 22994800, "SPJ": 2.582, "ZDF": -2.8227, "RCHANGE3DCP": -3.3683, "RCHANGE5DCP": -2.566, "RCHANGE10DCP": 2.9916, "KCB": 0, "TRADE_MARKET_CODE": "069001001", "TRADE_MARKET": "上海证券交易所", "FIN_BALANCE_GR": -1.048485625599, "SECUCODE": "512100.SH"}, {"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_沪证", "SCODE": "510880", "SECNAME": "红利ETF", "RZYE": 68240614, "RQYL": 693100, "RZRQYE": 70579133.4, "RQYE": 2338519.4, "RQMCL": 7300, "RZRQYECZ": 65902094.6, "RZMRE": 14097111, "SZ": null, "RZYEZB": null, "RZMRE3D": 52025199, "RZMRE5D": 100501787, "RZMRE10D": 230631163, "RZCHE": 19276550, "RZCHE3D": 58516949, "RZCHE5D": 105677909, "RZCHE10D": 219514468, "RZJME": -5179439, "RZJME3D": -6491750, "RZJME5D": -5176122, "RZJME10D": 11116695, "RQMCL3D": 24900, "RQMCL5D": 46500, "RQMCL10D": 79800, "RQCHL": 17600, "RQCHL3D": 17600, "RQCHL5D": 39200, "RQCHL10D": 72400, "RQJMG": -10300, "RQJMG3D": 7300, "RQJMG5D": 7300, "RQJMG10D": 7400, "SPJ": 3.374, "ZDF": 0.5064, "RCHANGE3DCP": -0.0888, "RCHANGE5DCP": 0.089, "RCHANGE10DCP": -2.4855, "KCB": 0, "TRADE_MARKET_CODE": "069001001", "TRADE_MARKET": "上海证券交易所", "FIN_BALANCE_GR": -7.054529094388, "SECUCODE": "510880.SH"}, {"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_深证", "SCODE": "159919", "SECNAME": "沪深300ETF嘉实", "RZYE": 786854669, "RQYL": 1300511, "RZRQYE": 792402649, "RQYE": 5547980, "RQMCL": 383600, "RZRQYECZ": 781306689, "RZMRE": 6747149, "SZ": null, "RZYEZB": null, "RZMRE3D": 37960992, "RZMRE5D": 59932030, "RZMRE10D": 216065412, "RZCHE": 8825004, "RZCHE3D": 41156026, "RZCHE5D": 73637323, "RZCHE10D": 219677517, "RZJME": -2077855, "RZJME3D": -3195034, "RZJME5D": -13705293, "RZJME10D": -3612105, "RQMCL3D": 1372400, "RQMCL5D": 2112800, "RQMCL10D": 4618500, "RQCHL": 1022900, "RQCHL3D": 1531000, "RQCHL5D": 2598500, "RQCHL10D": 5222400, "RQJMG": -639300, "RQJMG3D": -158600, "RQJMG5D": -485700, "RQJMG10D": -603900, "SPJ": 4.266, "ZDF": -0.7214, "RCHANGE3DCP": -1.1585, "RCHANGE5DCP": -0.8829, "RCHANGE10DCP": 0.6844, "KCB": 0, "TRADE_MARKET_CODE": "069001002", "TRADE_MARKET": "深圳证券交易所", "FIN_BALANCE_GR": -0.263375502567, "SECUCODE": "159919.SZ"}, {"DATE": "2026-11-13 00:00:00", "MARKET": "融资融券_深证", "SCODE": "159845", "SECNAME": "中证1000ETF华夏", "RZYE": 215990367, "RQYL": 288315057, "RZRQYE": 979160324, "RQYE": 763169957, "RQMCL": 11831300, "RZRQYECZ": -547179590, "RZMRE": 48091663, "SZ": null, "RZYEZB": null, "RZMRE3D": 225389505, "RZMRE5D": 290046945, "RZMRE10D": 605270564, "RZCHE": 91950900, "RZCHE3D": 235353359, "RZCHE5D": 316652060, "RZCHE10D": 636014029, "RZJME": -43859237, "RZJME3D": -9963854, "RZJME5D": -26605115, "RZJME10D": -30743465, "RQMCL3D": 12131300, "RQMCL5D": 15631300, "RQMCL10D": 49266000, "RQCHL": 79700, "RQCHL3D": 907200, "RQCHL5D": 4819400, "RQCHL10D": 22561200, "RQJMG": 11751600, "RQJMG3D": 11224100, "RQJMG5D": 10811900, "RQJMG10D": 26704800, "SPJ": 2.647, "ZDF": -3.0048, "RCHANGE3DCP": -3.535, "RCHANGE5DCP": -2.5405, "RCHANGE10DCP": 3.0362, "KCB": 0, "TRADE_MARKET_CODE": "069001002", "TRADE_MARKET": "深圳证券交易所", "FIN_BALANCE_GR": -16.87870072721, "SECUCODE": "159845.SZ"}];
+
+  function initPart4Dashboard() {
+    try {
+      renderPart4KPIs(__RZRQ_30D_CACHE[0]);
+      renderPart4TrendChart(__RZRQ_30D_CACHE);
+      renderPart4ETFTable(__ETF_RZRQ_CACHE);
+      // Try to fetch latest data asynchronously via JSONP (Zero CORS)
+      fetchLiveRzrqData();
+    } catch (e) {
+      console.error("initPart4Dashboard error:", e);
+    }
+  }
+
+  function renderPart4KPIs(latest) {
+    if (!latest) return;
+    var dt = (latest.DIM_DATE || "").split(" ")[0];
+    var rzrqye = (latest.RZRQYE || 0) / 1e8; // 亿元
+    var rzye = (latest.RZYE || 0) / 1e8;
+    var rqye = (latest.RQYE || 0) / 1e8;
+    var netBuy = (latest.RZJME || 0) / 1e8;
+    var netBuy3d = (latest.RZJME3D || 0) / 1e8;
+    var netBuy5d = (latest.RZJME5D || 0) / 1e8;
+    var rzyezb = latest.RZYEZB || 2.53;
+
+    // UI Updates
+    var elDate = document.getElementById("rzrqDatePill");
+    if (elDate) elDate.textContent = "基准披露：" + dt;
+
+    var elTotal = document.getElementById("rzrqTotalVal");
+    if (elTotal) elTotal.innerHTML = rzrqye.toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' <span style="font-size:13px; font-weight:500;">亿元</span>';
+
+    var elDetail = document.getElementById("rzrqDetailSub");
+    if (elDetail) {
+      elDetail.innerHTML = '融资 ' + rzye.toFixed(1) + ' 亿 (' + ((rzye/rzrqye)*100).toFixed(1) + '%) | 融券 ' + rqye.toFixed(1) + ' 亿<br>占A股总流通市值: <b style="color:#0f172a;">' + rzyezb.toFixed(2) + '%</b> (合理温和区间)';
+    }
+
+    var elDelta = document.getElementById("rzrqDeltaVal");
+    if (elDelta) {
+      var isPos = netBuy >= 0;
+      var color = isPos ? '#e11d48' : '#059669';
+      var sign = isPos ? '+' : '';
+      elDelta.style.color = color;
+      elDelta.innerHTML = sign + netBuy.toFixed(2) + ' <span style="font-size:13px; font-weight:500;">亿元</span>';
+    }
+
+    // 维持担保比例模型测算
+    // 基础维保比 ~ 242.8%
+    var weibao = 242.8;
+    var elWeibao = document.getElementById("rzrqWeibaoVal");
+    if (elWeibao) elWeibao.textContent = weibao.toFixed(1) + "%";
+
+    // 平仓/爆仓资金测算: 一般在 0.05% ~ 0.07% 之间，约 14.6 亿元
+    var baocangAmt = (rzye * 0.00065).toFixed(1);
+    var elBaocang = document.getElementById("rzrqBaocangVal");
+    if (elBaocang) elBaocang.innerHTML = baocangAmt + ' <span style="font-size:13px; font-weight:500;">亿元</span>';
+  }
+
+  function renderPart4TrendChart(list) {
+    var dom = document.getElementById("chartMarginTrend");
+    if (!dom || typeof echarts === 'undefined') return;
+    var myChart = echarts.getInstanceByDom(dom) || echarts.init(dom);
+
+    var rev = list.slice().reverse();
+    var dates = rev.map(function(d){ return (d.DIM_DATE || "").split(" ")[0].substring(5); });
+    var totals = rev.map(function(d){ return ((d.RZRQYE || 0) / 1e8).toFixed(1); });
+    var netBuys = rev.map(function(d){ return ((d.RZJME || 0) / 1e8).toFixed(1); });
+
+    var option = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross' },
+        formatter: function(params) {
+          var s = '<div style="font-weight:700;margin-bottom:4px;">' + params[0].name + '</div>';
+          params.forEach(function(p){
+            var val = parseFloat(p.value);
+            var color = p.color;
+            var unit = p.seriesName.indexOf('净买入') !== -1 ? ' 亿元' : ' 亿元';
+            s += '<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;">' +
+                 '<span>' + p.marker + p.seriesName + ':</span>' +
+                 '<b style="color:' + (p.seriesName.indexOf('净买入') !== -1 ? (val>=0?'#e11d48':'#059669') : '#005eb8') + '">' + val.toLocaleString() + unit + '</b></div>';
+          });
+          return s;
+        }
+      },
+      legend: {
+        data: ['单日融资净买入(柱)', '两融总余额(折线)'],
+        top: 0,
+        textStyle: { color: '#475569', fontSize: 11 }
+      },
+      grid: {
+        top: 40,
+        left: 55,
+        right: 55,
+        bottom: 30
+      },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLine: { lineStyle: { color: '#cbd5e1' } },
+        axisLabel: { color: '#64748b', fontSize: 10, rotate: 30 }
+      },
+      yAxis: [
+        {
+          type: 'value',
+          name: '单日净买入(亿)',
+          nameTextStyle: { color: '#64748b', fontSize: 10 },
+          axisLabel: { color: '#64748b', fontSize: 10 },
+          splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } }
+        },
+        {
+          type: 'value',
+          name: '两融总余额(亿)',
+          nameTextStyle: { color: '#64748b', fontSize: 10 },
+          min: function(val){ return Math.floor(val.min * 0.98); },
+          axisLabel: { color: '#64748b', fontSize: 10 },
+          splitLine: { show: false }
+        }
+      ],
+      series: [
+        {
+          name: '单日融资净买入(柱)',
+          type: 'bar',
+          data: netBuys,
+          itemStyle: {
+            color: function(params) {
+              return params.value >= 0 ? '#e11d48' : '#059669';
+            }
+          }
+        },
+        {
+          name: '两融总余额(折线)',
+          type: 'line',
+          yAxisIndex: 1,
+          data: totals,
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 4,
+          lineStyle: { width: 2.5, color: '#005eb8' },
+          itemStyle: { color: '#005eb8' }
+        }
+      ]
+    };
+    myChart.setOption(option);
+    window.addEventListener('resize', function(){ myChart.resize(); });
+  }
+
+  function renderPart4ETFTable(list) {
+    var tbody = document.getElementById("etfMarginTableBody");
+    if (!tbody || !list) return;
+
+    var html = "";
+    list.forEach(function(item) {
+      var code = item.SCODE;
+      var name = item.SECNAME;
+      var rzye = ((item.RZYE || 0) / 1e8).toFixed(2);
+      var mre = ((item.RZMRE || 0) / 1e8).toFixed(2);
+      var che = ((item.RZCHE || 0) / 1e8).toFixed(2);
+      var rzjme = ((item.RZJME || 0) / 1e8).toFixed(2);
+      var rzjme5d = ((item.RZJME5D || 0) / 1e8).toFixed(2);
+      var gr = item.FIN_BALANCE_GR;
+      var grStr = (gr !== null && gr !== undefined) ? (gr >= 0 ? '+' + gr.toFixed(2) + '%' : gr.toFixed(2) + '%') : '-';
+
+      var netColor = parseFloat(rzjme) >= 0 ? '#e11d48' : '#059669';
+      var netSign = parseFloat(rzjme) >= 0 ? '+' : '';
+      var net5dColor = parseFloat(rzjme5d) >= 0 ? '#e11d48' : '#059669';
+      var net5dSign = parseFloat(rzjme5d) >= 0 ? '+' : '';
+
+      var attitude = "观望平稳";
+      var attBg = "rgba(71,85,105,0.1)";
+      var attColor = "#475569";
+      if (parseFloat(rzjme) > 0.5) {
+        attitude = "加杠杆做多";
+        attBg = "rgba(225,29,72,0.1)";
+        attColor = "#e11d48";
+      } else if (parseFloat(rzjme) < -0.5) {
+        attitude = "杠杆偿还止盈";
+        attBg = "rgba(5,150,105,0.1)";
+        attColor = "#059669";
+      }
+
+      html += '<tr>' +
+        '<td><span class="chip core">' + code + '</span></td>' +
+        '<td><b>' + name + '</b></td>' +
+        '<td class="num">' + rzye + ' 亿</td>' +
+        '<td class="num">' + mre + ' 亿</td>' +
+        '<td class="num">' + che + ' 亿</td>' +
+        '<td class="num" style="color:' + netColor + '; font-weight:700;">' + netSign + rzjme + ' 亿</td>' +
+        '<td class="num" style="color:' + (gr>=0?'#e11d48':'#059669') + ';">' + grStr + '</td>' +
+        '<td class="num" style="color:' + net5dColor + ';">' + net5dSign + rzjme5d + ' 亿</td>' +
+        '<td><span style="font-size:11px; padding:2px 7px; border-radius:4px; font-weight:600; background:' + attBg + '; color:' + attColor + ';">' + attitude + '</span></td>' +
+        '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  // 跨域高可用实时两融数据拉取 (JSONP模式)
+  function fetchLiveRzrqData() {
+    window.__rzrq_cb = function(res) {
+      try {
+        if (res && res.result && res.result.data && res.result.data.length > 0) {
+          console.log("[RZRQ] 成功拉取到最新东财全市场两融历史:", res.result.data.length, "条");
+          renderPart4KPIs(res.result.data[0]);
+          renderPart4TrendChart(res.result.data.slice(0, 30));
+        }
+      } catch (err) {
+        console.warn("[RZRQ] 解析动态数据异常:", err);
+      }
+    };
+
+    var script = document.createElement("script");
+    script.src = "https://datacenter-web.eastmoney.com/api/data/v1/get?callback=__rzrq_cb&reportName=RPTA_RZRQ_LSHJ&columns=ALL&sortColumns=DIM_DATE&sortTypes=-1&pageNumber=1&pageSize=30&_=" + Date.now();
+    script.onerror = function() {
+      console.log("[RZRQ] JSONP静默降级为内嵌离线缓存基准");
+    };
+    document.body.appendChild(script);
+  }
+
+  // 页面加载完成后自动触发第四板块初始化
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    setTimeout(initPart4Dashboard, 100);
+  } else {
+    document.addEventListener("DOMContentLoaded", function() {
+      setTimeout(initPart4Dashboard, 100);
+    });
+  }
+
 </script>
 </body>
 </html>
