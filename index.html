@@ -660,16 +660,30 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
     });
   };
 
-  // 新浪财经1分钟分时K线接口 (原生支持跨域 JSONP，无 WAF 拦截)
+  // 新浪财经1分钟分时K线接口 (原生支持跨域 JSONP，无 WAF 拦截，具备本地内存缓存及容错机制)
+  window.__cachedSinaRows = window.__cachedSinaRows || {};
   function fetchSinaMinute(sym) {
     var globalVar = "_" + sym;
     var url = "https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20" + globalVar + "=/CN_MarketDataService.getKLineData?symbol=" + sym + "&scale=1&datalen=240&_=" + Date.now();
     return new Promise(function(resolve) {
-      var timer = setTimeout(function() { resolve([]); }, 5000);
+      var timer = setTimeout(function() {
+        if (window.__cachedSinaRows[sym] && window.__cachedSinaRows[sym].length) {
+          resolve(window.__cachedSinaRows[sym]);
+        } else {
+          resolve([]);
+        }
+      }, 12000);
       loadScript(url, "gbk").then(function() {
         clearTimeout(timer);
         var raw = window[globalVar];
-        if (!raw || !Array.isArray(raw)) { resolve([]); return; }
+        if (!raw || !Array.isArray(raw)) {
+          if (window.__cachedSinaRows[sym] && window.__cachedSinaRows[sym].length) {
+            resolve(window.__cachedSinaRows[sym]);
+          } else {
+            resolve([]);
+          }
+          return;
+        }
         var items = raw.map(function(item) {
           return {
             day: item.day,
@@ -681,13 +695,19 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
             amount: String(item.amount || "")
           };
         });
+        window.__cachedSinaRows[sym] = items;
         resolve(items);
       }).catch(function() {
         clearTimeout(timer);
-        resolve([]);
+        if (window.__cachedSinaRows[sym] && window.__cachedSinaRows[sym].length) {
+          resolve(window.__cachedSinaRows[sym]);
+        } else {
+          resolve([]);
+        }
       });
     });
   }
+  window.fetchSinaMinute = fetchSinaMinute;
 
 
   // 自动在后台同步最近23个交易日（5分钟K线）与近5日（1分钟精准K线）累计成交额曲线，
@@ -842,7 +862,7 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
     }).catch(function() {});
   }
 
-  setTimeout(syncRecentCumDays, 1200);
+  setTimeout(syncRecentCumDays, 30000);
 
   window.fetch = function(url, options) {
     if (typeof url === "string") {
@@ -1507,14 +1527,26 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
   function renderStatic() {
     var t = initData.times || [], b = initData.bars || [], c = initData.closes || [], tb = initData.table || [];
     if (!t.length) return;
-    minuteTimes = t; minuteBars = b; minuteCloses = c;
+
+    // 若当前为交易日上午或午休（<13:00），基准占位仅截取至11:30，绝不显示下午未发生的虚假全天柱形！
+    var d = new Date(), day = d.getDay();
+    var isTradeDay = (day >= 1 && day <= 5);
+    var hm = d.getHours() * 100 + d.getMinutes();
+    var cut = t.length;
+    if (isTradeDay && hm < 1300 && hm >= 915) {
+      var idx1130 = t.indexOf("11:30");
+      if (idx1130 !== -1) cut = idx1130 + 1;
+    }
+    var subT = t.slice(0, cut), subB = b.slice(0, cut), subC = c.slice(0, cut);
+
+    minuteTimes = subT; minuteBars = subB; minuteCloses = subC;
     minuteDate = String(initData.date || "");
-    buildCum(b);
+    buildCum(subB);
     document.getElementById("tagDate").textContent = (initData.date || "") + " 分时";
     renderTable(tb.slice().sort(function (x, y) { return y.amount - x.amount; }));
     drawMinuteChart();
     drawCumChart();
-    document.getElementById("tagUpdate").textContent = "已载入收盘数据";
+    document.getElementById("tagUpdate").textContent = "已就绪";
     document.getElementById("tagUpdate").className = "tag ok";
   }
 
@@ -1822,9 +1854,60 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
     if (btn) btn.classList.add("active");
     var badge = document.getElementById("idxQuoteBadge");
     if (badge) badge.textContent = "当前对照：" + name + " (切换中...)";
-    state.loading = false;
-    loadAll();
+
+    // 1. 立即拉取腾讯行情快照，100ms 内极速响应更新对照指数 Badge 价格与涨跌幅
+    if (window.__jsonpTencentHq) {
+      window.__jsonpTencentHq(sinaSym).then(function(res) {
+        if (res && res.data && res.data.diff && res.data.diff.length) {
+          var x = res.data.diff[0];
+          var p = Number(x.f2), pct = Number(x.f3);
+          var clr = pct >= 0 ? '#e11d48' : '#059669';
+          var sign = pct >= 0 ? '+' : '';
+          if (badge) badge.innerHTML = '当前对照：<b style="color:' + clr + ';">' + name + ' ' + p.toFixed(2) + ' (' + sign + pct.toFixed(2) + '%)</b>';
+          if (Number(x.f18)) preClose = Number(x.f18);
+        }
+      }).catch(function() {});
+    }
+
+    // 2. 独立拉取选中指数的分时 K 线，无需重刷全部 20 只 ETF，即刻切换分时右轴折线
+    var fetchFn = window.fetchSinaMinute || fetchSinaMinute;
+    if (fetchFn) {
+      fetchFn(sinaSym).then(function(rawRows) {
+        var tr = toRows(rawRows);
+        if (tr && tr.rows && tr.rows.length) {
+          updateChartWithIndex(tr.rows, name);
+        } else {
+          loadAll();
+        }
+      }).catch(function() {
+        loadAll();
+      });
+    } else {
+      loadAll();
+    }
   };
+
+  function updateChartWithIndex(idxRows, name) {
+    if (!idxRows || !idxRows.length) return;
+    var curName = name || window.__currentIndexName || IDX_LABEL || "对照指数";
+    var mapClose = {};
+    idxRows.forEach(function(r) { mapClose[r.t] = r.close; });
+    
+    if (!minuteTimes || !minuteTimes.length) {
+      minuteTimes = idxRows.map(function(r) { return r.t; });
+    }
+    
+    minuteCloses = minuteTimes.map(function(t) {
+      return mapClose[t] != null ? mapClose[t] : null;
+    });
+    
+    drawMinuteChart();
+    var tag = document.getElementById("tagUpdate");
+    if (tag) {
+      tag.textContent = "更新于 " + new Date().toTimeString().slice(0, 8);
+      tag.className = "tag ok";
+    }
+  }
 
   function renderLive(indexTr, etfTrs, snap) {
     var idxRows = indexTr.rows;
@@ -1838,6 +1921,8 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
     etfTrs.forEach(function (tr) {
       tr.rows.forEach(function (r) { sums[r.t] = (sums[r.t] || 0) + r.amount; });
     });
+    window.__cachedMinuteSums = sums;
+
     var times = [], bars = [], closes = [];
     idxRows.forEach(function (r) {
       times.push(r.t);
@@ -1856,8 +1941,7 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
       renderTable(rows);
       updateStyleAttribution(snap.list);
       if (snap.idx) {
-        
-        var idxName = window.__currentIndexName || "对照指数";
+        var idxName = window.__currentIndexName || IDX_LABEL || "对照指数";
         var p = Number(snap.idx.f2), pct = Number(snap.idx.f3);
         var clr = pct >= 0 ? '#e11d48' : '#059669';
         var sign = pct >= 0 ? '+' : '';
@@ -1904,30 +1988,37 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
       Promise.all(jobs.map(safe)).then(function (rs) {
         var list = (rs[0].ok && rs[0].v) || [];
         var snap = (rs[1].ok && rs[1].v) || null;
-        
 
-        // 1. 只要拿到实时行情快照，立即渲染单只 ETF 表格与最新成交
+        // 1. 只要拿到实时行情快照，立即渲染单只 ETF 表格与最新成交，并更新对照指数 Badge
         if (snap && snap.list && snap.list.length) {
           var rows = snap.list.map(function (x) {
             return { code: x.f12, name: etfName(x.f12, x.f14), price: Number(x.f2), pct: Number(x.f3), amount: Number(x.f6) / 1e8, outer_lots: x.outer_lots || 0, inner_lots: x.inner_lots || 0 };
           }).sort(function (a, b) { return b.amount - a.amount; });
           renderTable(rows);
+          updateStyleAttribution(snap.list);
           if (snap.idx && Number(snap.idx.f18)) preClose = Number(snap.idx.f18);
+        }
+        if (snap && snap.idx) {
+          var idxName = window.__currentIndexName || IDX_LABEL || "对照指数";
+          var p = Number(snap.idx.f2), pct = Number(snap.idx.f3);
+          var clr = pct >= 0 ? '#e11d48' : '#059669';
+          var sign = pct >= 0 ? '+' : '';
+          var b = document.getElementById("idxQuoteBadge");
+          if (b) b.innerHTML = '当前对照：<b style="color:' + clr + ';">' + idxName + ' ' + p.toFixed(2) + ' (' + sign + pct.toFixed(2) + '%)</b>';
         }
 
         // 2. 检查分时数据：若满足条件则更新分时折线，若不满足则平稳保留基准图
         var indexTr = list.length && list[0] && list[0].ok ? list[0].v : null;
         var etfTrs = [];
         for (var k = 1; k < list.length; k++) if (list[k] && list[k].ok) etfTrs.push(list[k].v);
-        var need = Math.ceil(ETFS.length * 0.8);
+        var need = Math.ceil(ETFS.length * 0.65); // 容错放宽到 65%
 
-        
-        if (indexTr && indexTr.rows && indexTr.rows.length && etfTrs.length >= need) {
-          
-          renderLive(indexTr, etfTrs, snap);
+        if (indexTr && indexTr.rows && indexTr.rows.length && (etfTrs.length >= need || (window.__cachedMinuteSums && Object.keys(window.__cachedMinuteSums).length))) {
+          renderLive(indexTr, etfTrs.length >= need ? etfTrs : (window.__cachedEtfTrs || etfTrs), snap);
+          if (etfTrs.length >= need) window.__cachedEtfTrs = etfTrs;
+        } else if (indexTr && indexTr.rows && indexTr.rows.length) {
+          updateChartWithIndex(indexTr.rows, window.__currentIndexName || IDX_LABEL);
         } else {
-          
-          // 平滑兜底：分时数据不全时，确保基准分时和累计走势图正常展示
           var tag = document.getElementById("tagUpdate");
           if (tag) {
             tag.textContent = "已就绪 " + new Date().toTimeString().slice(0, 8);
