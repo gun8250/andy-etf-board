@@ -1765,6 +1765,67 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
     });
   }
 
+    // 风格资金归因计算与渲染
+  function updateStyleAttribution(snapList) {
+    if (!snapList || !snapList.length) return;
+    var cats = { dapan: 0, keji: 0, xiaopan: 0, fangyu: 0 };
+    var totalAmt = 0;
+    var catMap = {};
+    ETFS.forEach(function(e) { catMap[e.code] = e.cat || "dapan"; });
+    snapList.forEach(function(item) {
+      var c = item.f12;
+      var amt = Number(item.f6) / 1e8; // 亿元
+      var cat = catMap[c] || "dapan";
+      if (cats[cat] !== undefined) {
+        cats[cat] += amt;
+      }
+      totalAmt += amt;
+    });
+    if (totalAmt <= 0) return;
+    var pDapan = ((cats.dapan / totalAmt) * 100);
+    var pKeji = ((cats.keji / totalAmt) * 100);
+    var pXiaopan = ((cats.xiaopan / totalAmt) * 100);
+    var pFangyu = ((cats.fangyu / totalAmt) * 100);
+
+    var elTotal = document.getElementById("styleFlowTotal");
+    if (elTotal) elTotal.textContent = "20只ETF合计成交: " + totalAmt.toFixed(2) + " 亿元";
+
+    var bDapan = document.getElementById("barDapan");
+    var bKeji = document.getElementById("barKeji");
+    var bXiaopan = document.getElementById("barXiaopan");
+    var bFangyu = document.getElementById("barFangyu");
+
+    if (bDapan) bDapan.style.width = pDapan.toFixed(1) + "%";
+    if (bKeji) bKeji.style.width = pKeji.toFixed(1) + "%";
+    if (bXiaopan) bXiaopan.style.width = pXiaopan.toFixed(1) + "%";
+    if (bFangyu) bFangyu.style.width = pFangyu.toFixed(1) + "%";
+
+    var vDapan = document.getElementById("valDapan");
+    var vKeji = document.getElementById("valKeji");
+    var vXiaopan = document.getElementById("valXiaopan");
+    var vFangyu = document.getElementById("valFangyu");
+
+    if (vDapan) vDapan.textContent = cats.dapan.toFixed(1) + " 亿 (" + pDapan.toFixed(1) + "%)";
+    if (vKeji) vKeji.textContent = cats.keji.toFixed(1) + " 亿 (" + pKeji.toFixed(1) + "%)";
+    if (vXiaopan) vXiaopan.textContent = cats.xiaopan.toFixed(1) + " 亿 (" + pXiaopan.toFixed(1) + "%)";
+    if (vFangyu) vFangyu.textContent = cats.fangyu.toFixed(1) + " 亿 (" + pFangyu.toFixed(1) + "%)";
+  }
+
+  window.switchIndex = function(sinaSym, emSecid, name, btn) {
+    INDEX_SECID = emSecid;
+    IDX_LABEL = name;
+    window.__currentSinaSym = sinaSym;
+    window.__currentIndexSecid = emSecid;
+    window.__currentIndexName = name;
+    var btns = document.querySelectorAll("#part1 .pill-btn");
+    btns.forEach(function(b) { b.classList.remove("active"); });
+    if (btn) btn.classList.add("active");
+    var badge = document.getElementById("idxQuoteBadge");
+    if (badge) badge.textContent = "当前对照：" + name + " (切换中...)";
+    state.loading = false;
+    loadAll();
+  };
+
   function renderLive(indexTr, etfTrs, snap) {
     var idxRows = indexTr.rows;
     if (!idxRows.length) {
@@ -1795,6 +1856,7 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
       renderTable(rows);
       updateStyleAttribution(snap.list);
       if (snap.idx) {
+        
         var idxName = window.__currentIndexName || "对照指数";
         var p = Number(snap.idx.f2), pct = Number(snap.idx.f3);
         var clr = pct >= 0 ? '#e11d48' : '#059669';
@@ -1842,6 +1904,7 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
       Promise.all(jobs.map(safe)).then(function (rs) {
         var list = (rs[0].ok && rs[0].v) || [];
         var snap = (rs[1].ok && rs[1].v) || null;
+        
 
         // 1. 只要拿到实时行情快照，立即渲染单只 ETF 表格与最新成交
         if (snap && snap.list && snap.list.length) {
@@ -1858,9 +1921,12 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
         for (var k = 1; k < list.length; k++) if (list[k] && list[k].ok) etfTrs.push(list[k].v);
         var need = Math.ceil(ETFS.length * 0.8);
 
+        
         if (indexTr && indexTr.rows && indexTr.rows.length && etfTrs.length >= need) {
+          
           renderLive(indexTr, etfTrs, snap);
         } else {
+          
           // 平滑兜底：分时数据不全时，确保基准分时和累计走势图正常展示
           var tag = document.getElementById("tagUpdate");
           if (tag) {
@@ -1885,18 +1951,18 @@ window.__CUMDAYS = {"2026-01-05": [18, 26, 35, 41, 48, 59, 67, 74, 80, 90, 99, 1
   function tick() {
     if (state.paused || state.loading) return;
     state.remain -= 1;
-    var tag = document.getElementById("tagCountdown");
+    var tag = document.getElementById("tagCountdown") || document.getElementById("tagUpdate");
     if (state.remain <= 0) {
-      /* 加 0~12 秒随机抖动：否则所有访客的倒计时都在页面加载后整齐对齐，
-         每到整点一起发 21 个请求，形成惊群（服务端已做缓存，但错峰能进一步削平峰值）。 */
       state.remain = isTradingTime()
         ? REFRESH_TRADING + Math.floor(Math.random() * 12)
         : REFRESH_IDLE + Math.floor(Math.random() * 30);
-      if (isTradingTime()) loadAll();
+      loadAll();
       return;
     }
-    tag.style.display = isTradingTime() ? "" : "none";
-    tag.textContent = "下次刷新 " + state.remain + "s";
+    if (tag && tag.id === "tagCountdown") {
+      tag.style.display = isTradingTime() ? "" : "none";
+      tag.textContent = "下次刷新 " + state.remain + "s";
+    }
   }
 
   on(document.getElementById("btnRefresh"), "click", function () {
@@ -3197,86 +3263,6 @@ var currentTableFilter = 'all';
     document.addEventListener("DOMContentLoaded", function() {
       setTimeout(initPart4Dashboard, 100);
     });
-  }
-
-
-  /* ========================================================
-   * 增强功能：多指数联动切换与风格资金归因引擎
-   * ======================================================== */
-  window.__currentSinaSym = "sh000001";
-  window.__currentIndexSecid = "1.000001";
-  window.__currentIndexName = "上证综指";
-
-  window.switchIndex = function(sinaSym, emSecid, name, btn) {
-    window.__currentSinaSym = sinaSym;
-    window.__currentIndexSecid = emSecid;
-    window.__currentIndexName = name;
-    INDEX_SECID = emSecid;
-    IDX_LABEL = name;
-
-    // Update button states
-    var btns = document.querySelectorAll("#part1 .pill-btn");
-    btns.forEach(function(b) { b.classList.remove("active"); });
-    if (btn) btn.classList.add("active");
-
-    var badge = document.getElementById("idxQuoteBadge");
-    if (badge) badge.textContent = "当前对照：" + name + " (切换中...)";
-
-    // Trigger immediate refresh with new index
-    if (typeof window.loadAll === "function") {
-      window.loadAll();
-    }
-  };
-
-  // 风格资金归因计算与渲染
-  function updateStyleAttribution(snapList) {
-    if (!snapList || !snapList.length) return;
-    var cats = { dapan: 0, keji: 0, xiaopan: 0, fangyu: 0 };
-    var totalAmt = 0;
-
-    // Map each code to its cat
-    var catMap = {};
-    ETFS.forEach(function(e) { catMap[e.code] = e.cat || "dapan"; });
-
-    snapList.forEach(function(item) {
-      var c = item.f12;
-      var amt = Number(item.f6) / 1e8; // 亿元
-      var cat = catMap[c] || "dapan";
-      if (cats[cat] !== undefined) {
-        cats[cat] += amt;
-      }
-      totalAmt += amt;
-    });
-
-    if (totalAmt <= 0) return;
-
-    var pDapan = ((cats.dapan / totalAmt) * 100);
-    var pKeji = ((cats.keji / totalAmt) * 100);
-    var pXiaopan = ((cats.xiaopan / totalAmt) * 100);
-    var pFangyu = ((cats.fangyu / totalAmt) * 100);
-
-    var elTotal = document.getElementById("styleFlowTotal");
-    if (elTotal) elTotal.textContent = "20只ETF合计成交: " + totalAmt.toFixed(2) + " 亿元";
-
-    var bDapan = document.getElementById("barDapan");
-    var bKeji = document.getElementById("barKeji");
-    var bXiaopan = document.getElementById("barXiaopan");
-    var bFangyu = document.getElementById("barFangyu");
-
-    if (bDapan) bDapan.style.width = pDapan.toFixed(1) + "%";
-    if (bKeji) bKeji.style.width = pKeji.toFixed(1) + "%";
-    if (bXiaopan) bXiaopan.style.width = pXiaopan.toFixed(1) + "%";
-    if (bFangyu) bFangyu.style.width = pFangyu.toFixed(1) + "%";
-
-    var vDapan = document.getElementById("valDapan");
-    var vKeji = document.getElementById("valKeji");
-    var vXiaopan = document.getElementById("valXiaopan");
-    var vFangyu = document.getElementById("valFangyu");
-
-    if (vDapan) vDapan.textContent = cats.dapan.toFixed(1) + " 亿 (" + pDapan.toFixed(1) + "%)";
-    if (vKeji) vKeji.textContent = cats.keji.toFixed(1) + " 亿 (" + pKeji.toFixed(1) + "%)";
-    if (vXiaopan) vXiaopan.textContent = cats.xiaopan.toFixed(1) + " 亿 (" + pXiaopan.toFixed(1) + "%)";
-    if (vFangyu) vFangyu.textContent = cats.fangyu.toFixed(1) + " 亿 (" + pFangyu.toFixed(1) + "%)";
   }
 
 </script>
