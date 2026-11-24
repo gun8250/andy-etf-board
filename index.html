@@ -362,107 +362,374 @@ footer.site-footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid 
   box-shadow: 0 0 12px rgba(37,99,235,0.4);
 }
 
+/* ================================================================
+   全站移动端与小屏专属深度适配 (iPhone, Android, 小屏平板)
+   ================================================================ */
+
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+/* 全局多标签栏 (Sticky Sitebar) */
+.sitebar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  overflow: hidden;
+}
+.sitebar-in {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 12px;
+  display: flex;
+  gap: 16px;
+  height: 44px;
+  align-items: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.sitebar-in::-webkit-scrollbar {
+  display: none;
+}
+.sitebar .tab-link {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #64748b;
+  text-decoration: none;
+  height: 44px;
+  line-height: 44px;
+  border-bottom: 2.5px solid transparent;
+  transition: all .15s;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+.sitebar .tab-link:hover {
+  color: #d93630;
+}
+.sitebar .tab-link.on {
+  color: #0f172a;
+  font-weight: 700;
+  border-bottom-color: #d93630;
+}
+.sitebar .tab-badge {
+  font-size: 9.5px;
+  background: #ea580c;
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 8px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
+  /* 移动端页面容器 */
   body {
-    background: #0b0f19;
+    background: #f8fafc !important;
+    color: #0f172a !important;
   }
   .wrap {
-    padding: 12px 10px 40px !important;
+    padding: 12px 10px 48px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
-  .header {
+
+  /* 顶栏与品牌区 */
+  .top-header {
     flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 12px !important;
-    margin-bottom: 16px !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
   }
-  .header-actions {
-    width: 100%;
-    justify-content: flex-start;
+  .brand h1 {
+    font-size: 19px !important;
+    line-height: 1.3 !important;
+    display: block !important;
   }
+  .brand .sub {
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+    color: #64748b !important;
+    margin-top: 4px !important;
+  }
+  .top-nav {
+    display: flex !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding: 2px 0 !important;
+    margin-top: 6px !important;
+    width: 100% !important;
+  }
+  .top-nav::-webkit-scrollbar {
+    display: none !important;
+  }
+  .top-nav a {
+    font-size: 11.5px !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+  .status-pill-group {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+  }
+  .status-pill-group .pill {
+    font-size: 11px !important;
+    padding: 3px 8px !important;
+  }
+  .status-pill-group .action-btn {
+    font-size: 11px !important;
+    padding: 3px 8px !important;
+  }
+
+  /* 判定卡片 */
   .verdict-card {
-    padding: 16px !important;
-    margin-bottom: 16px !important;
-  }
-  .v-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    padding: 14px 12px !important;
+    margin-bottom: 14px !important;
+    border-radius: 8px !important;
   }
   .v-title {
-    font-size: 22px !important;
+    font-size: 17px !important;
   }
   .v-stamp {
-    align-self: flex-start;
-    padding: 4px 10px;
+    font-size: 11.5px !important;
+    padding: 3px 8px !important;
   }
+  .verdict-text {
+    font-size: 12.5px !important;
+    line-height: 1.55 !important;
+  }
+
+  /* 核心指标网格 (2列并排) */
   .metric-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 14px !important;
   }
-  .metric-card {
-    padding: 12px 14px !important;
+  .m-card {
+    padding: 10px 10px !important;
+    border-radius: 8px !important;
+  }
+  .m-label {
+    font-size: 11.5px !important;
   }
   .m-val {
-    font-size: 20px !important;
+    font-size: 18px !important;
+    margin-top: 2px !important;
   }
+  .m-sub {
+    font-size: 10.5px !important;
+    line-height: 1.4 !important;
+    margin-top: 4px !important;
+  }
+
+  /* 图表面板 */
   .panel-card {
-    padding: 16px 12px !important;
-    margin-bottom: 16px !important;
+    padding: 12px 10px !important;
+    margin-bottom: 14px !important;
+    border-radius: 8px !important;
   }
   .panel-head {
-    flex-direction: column;
+    flex-direction: column !important;
     align-items: flex-start !important;
-    gap: 8px;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
   }
-  .filter-bar {
-    width: 100%;
-    overflow-x: auto;
-    white-space: nowrap;
-    padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
+  .panel-title {
+    font-size: 15px !important;
   }
-  .pill-btn {
-    padding: 5px 12px;
-    font-size: 12px;
-    flex-shrink: 0;
-  }
-  .tscroll {
-    position: relative;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.06);
-  }
-  /* 移动端两列固定：代码与基金名称固定在左侧，右侧自由平滑滑动 */
-  .fin-table th:first-child,
-  .fin-table td:first-child {
-    position: sticky;
-    left: 0;
-    background: #0f172a;
-    z-index: 3;
-    padding-left: 8px;
-    padding-right: 6px;
-  }
-  .fin-table th:nth-child(2),
-  .fin-table td:nth-child(2) {
-    position: sticky;
-    left: 62px;
-    background: #0f172a;
-    z-index: 3;
-    padding-left: 6px;
-    padding-right: 12px;
-    box-shadow: 4px 0 8px rgba(0,0,0,0.5);
-  }
-  .fin-table td {
-    padding: 10px 8px;
-    font-size: 13px;
+  .panel-sub {
+    font-size: 11px !important;
   }
   .chart {
-    height: 280px !important;
+    height: 260px !important;
+    width: 100% !important;
+  }
+  #chartTypCase, #chartTypNorm {
+    height: 240px !important;
+  }
+  #chartCum {
+    height: 270px !important;
+  }
+
+  /* 过滤器药丸栏 */
+  .filter-bar {
+    width: 100% !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding-bottom: 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    gap: 6px !important;
+  }
+  .filter-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .pill-btn {
+    padding: 4px 10px !important;
+    font-size: 11.5px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* 表格横向平滑滚动 (纯白专业底色，不突兀) */
+  .tscroll {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 6px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #fff !important;
+  }
+  .fin-table {
+    min-width: 480px !important;
+    font-size: 12px !important;
+    background: #fff !important;
+  }
+  .fin-table th {
+    padding: 8px 6px !important;
+    font-size: 11px !important;
+    background: #f8fafc !important;
+    color: #475569 !important;
+    white-space: nowrap !important;
+  }
+  .fin-table td {
+    padding: 8px 6px !important;
+    font-size: 12px !important;
+    color: #0f172a !important;
+    background: #fff !important;
+    white-space: nowrap !important;
+  }
+  .fin-table tr:hover td {
+    background: #f1f5f9 !important;
+  }
+  .fin-table th:first-child,
+  .fin-table td:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    background: #fff !important;
+    z-index: 2 !important;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.03) !important;
+  }
+  .fin-table th:first-child {
+    background: #f8fafc !important;
+  }
+
+  /* ===== Tab 2: 杠杆两融看板移动端适配 ===== */
+  #tab-leverage {
+    padding: 12px 10px 48px !important;
+  }
+  #tab-leverage .wrap {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  #tab-leverage header.top {
+    margin-bottom: 10px !important;
+  }
+  #tab-leverage header.top h1 {
+    font-size: 18px !important;
+  }
+  #tab-leverage header.top .sub {
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+  }
+  #tab-leverage .panel {
+    padding: 10px 10px 8px !important;
+    margin-bottom: 10px !important;
+    border-radius: 8px !important;
+  }
+  #tab-leverage .panel-t {
+    font-size: 11.5px !important;
+    margin-bottom: 6px !important;
+  }
+  #tab-leverage .seg {
+    gap: 5px !important;
+  }
+  #tab-leverage .seg button {
+    font-size: 11.5px !important;
+    padding: 5px 10px !important;
+    min-height: 30px !important;
+  }
+  #tab-leverage .card {
+    padding: 10px 10px 8px !important;
+    margin-bottom: 12px !important;
+    border-radius: 8px !important;
+  }
+  #tab-leverage .card-hd h2 {
+    font-size: 14px !important;
+    line-height: 1.3 !important;
+  }
+  #tab-leverage .card-hd .grp {
+    font-size: 10.5px !important;
+    margin-top: 2px !important;
+  }
+  #tab-leverage .latest .v {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+  }
+  #tab-leverage .latest .d {
+    font-size: 10.5px !important;
+  }
+  #tab-leverage .note {
+    font-size: 10.5px !important;
+    line-height: 1.5 !important;
+    padding: 4px 0 2px !important;
+  }
+  #tab-leverage .ft {
+    font-size: 11px !important;
+    line-height: 1.6 !important;
+    margin-top: 10px !important;
+  }
+
+  /* 移动端图表高度变量 */
+  :root {
+    --h-bar: 260px !important;
+    --h-line: 250px !important;
+    --h-band: 270px !important;
+    --h-ind: 820px !important;
+  }
+
+  /* ===== Tab 3 (雪球) 与 Tab 4 (质押) 移动端卡片网格适配 ===== */
+  .xq-grid, .pz-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .xq-card, .pz-card {
+    padding: 12px 10px !important;
+    border-radius: 8px !important;
+  }
+  .xq-table, .pz-table {
+    min-width: 440px !important;
+    font-size: 12px !important;
   }
 }
-
 
 /* 第四部分 · 杠杆两融与爆仓预警定制样式 */
 .risk-badge {
@@ -1901,7 +2168,7 @@ window.persistCumDay = persistCumDay;
       title: { text: "20只ETF分钟成交额与" + curIdxLabel + "分时", left: 8, top: 6, padding: 0, textStyle: { fontSize: 14 } },
       legend: { data: [BAR_LABEL, curIdxLabel], left: 8, top: 26, type: "scroll", height: 24, itemWidth: 16, itemHeight: 10 },
       grid: { top: 76, left: 16, right: 8, bottom: 54, containLabel: true },
-      tooltip: { trigger: "axis", formatter: minuteTooltip },
+      tooltip: { trigger: "axis", confine: true, formatter: minuteTooltip },
       xAxis: { type: "category", data: shownT, axisLabel: { hideOverlap: true }, boundaryGap: true },
       yAxis: [
         { type: "value", name: "亿元", min: 0, max: barAxisMax(shownBars), splitNumber: 5, nameTextStyle: { align: "left" } },
@@ -1996,7 +2263,7 @@ window.persistCumDay = persistCumDay;
       legend: { data: s.map(function (x) { return x.name; }), left: 8, top: 26,
                 type: "scroll", height: 24, itemWidth: 16, itemHeight: 10 },
       grid: { top: 76, left: 16, right: 8, bottom: 54, containLabel: true },
-      tooltip: { trigger: "axis", formatter: function (ps) {
+      tooltip: { trigger: "axis", confine: true, formatter: function (ps) {
         var out = [ps[0].axisValue];
         ps.forEach(function (p) {
           out.push(p.seriesName + "：" + (p.value == null ? "--" : Number(p.value).toFixed(2) + " 亿"));
@@ -2583,7 +2850,7 @@ window.persistCumDay = persistCumDay;
     chart.setOption({
       title: { text: title, left: 8, top: 6, padding: 0, textStyle: { fontSize: 14 } },
       grid: { top: 56, left: 16, right: 8, bottom: 48, containLabel: true },
-      tooltip: { trigger: "axis", formatter: function (ps) {
+      tooltip: { trigger: "axis", confine: true, formatter: function (ps) {
         var x = ps[0];
         var tag = (extraBars || []).some(function (r) { return r.date === x.axisValue; }) ? "（近期）" : "";
         var v = (pendDate && x.axisValue === pendDate) ? "待公布"
@@ -2786,7 +3053,7 @@ window.persistCumDay = persistCumDay;
       title: { text: title, left: 8, top: 6, padding: 0, textStyle: { fontSize: 14 } },
       legend: { data: [barName, "上证综指"], left: 8, top: 26, type: "scroll", height: 24, itemWidth: 16, itemHeight: 10 },
       grid: { top: 76, left: 16, right: 8, bottom: 56, containLabel: true },
-      tooltip: { trigger: "axis", formatter: tipFn },
+      tooltip: { trigger: "axis", confine: true, formatter: tipFn },
       xAxis: { type: "category", data: dates, axisLabel: { hideOverlap: true } },
       yAxis: [
         { type: "value", name: "亿元", scale: true, nameTextStyle: { align: "left" } },
@@ -2827,7 +3094,7 @@ window.persistCumDay = persistCumDay;
       legend: { data: [cfg.barName, cfg.refName], left: 8, top: 26,
                 type: "scroll", height: 24, itemWidth: 16, itemHeight: 10 },
       grid: { top: 76, left: 16, right: 8, bottom: 58, containLabel: true },
-      tooltip: { trigger: "axis", formatter: function (ps) {
+      tooltip: { trigger: "axis", confine: true, formatter: function (ps) {
         var i = ps[0].dataIndex;
         return [ps[0].axisValue,
                 cfg.barName + "：" + fmt(cfg.amt[i], 2) + " 亿/分钟",
@@ -5002,14 +5269,18 @@ window.switchMainTab = function(tabId) {
         if (window.resizeLeverageCharts) window.resizeLeverageCharts();
       }, 50);
     } else if (tabId === "tab-xueqiu") {
-      if (window.initXueqiuDashboard) window.initXueqiuDashboard();
+      if (typeof window.initXueqiu === "function") window.initXueqiu();
+      if (typeof window.initXueqiuDashboard === "function") window.initXueqiuDashboard();
       setTimeout(function() {
-        if (window.resizeXueqiuCharts) window.resizeXueqiuCharts();
+        if (typeof window.__xueqiuResize === "function") window.__xueqiuResize();
+        if (typeof window.resizeXueqiuCharts === "function") window.resizeXueqiuCharts();
       }, 50);
     } else if (tabId === "tab-pledge") {
-      if (window.initPledgeDashboard) window.initPledgeDashboard();
+      if (typeof window.initPledge === "function") window.initPledge();
+      if (typeof window.initPledgeDashboard === "function") window.initPledgeDashboard();
       setTimeout(function() {
-        if (window.resizePledgeCharts) window.resizePledgeCharts();
+        if (typeof window.__pledgeResize === "function") window.__pledgeResize();
+        if (typeof window.resizePledgeCharts === "function") window.resizePledgeCharts();
       }, 50);
     } else if (tabId === "tab-etf") {
       setTimeout(function() {
